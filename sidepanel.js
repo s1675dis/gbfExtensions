@@ -2709,7 +2709,14 @@ chrome.runtime.onMessage.addListener((message) => {
       message.capturedEffects || [],
     );
     elements.guidebookStatus.classList.add?.('updated');
-    if (latestCandidateCount === 0 && latestAcquisitionCount === 0)
+    if (message.ownershipSynchronized) {
+      const ownedEffectCount = currentGuidebookEffects.filter(effect => (
+        !effect.isPlaceholder && Number(effect.count) > 0
+      )).length;
+      elements.guidebookStatus.textContent =
+        `導本ページと完全同期 / 所持効果 ${ownedEffectCount}件`;
+    }
+    else if (latestCandidateCount === 0 && latestAcquisitionCount === 0)
       elements.guidebookStatus.textContent = `候補をリアルタイム記録 / ${currentGuidebookEffects.length}件`;
   }
 });

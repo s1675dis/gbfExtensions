@@ -1245,6 +1245,14 @@ expect('hit-prediction tab is replaced by the real-time guidebook effect list', 
   bookPageDomCapture: pageHookSource.includes('#arcarum3\\/book')
     && pageHookSource.includes('img[src*="/arcarum3/assets/icon_book_effect/"]')
     && pageHookSource.includes("source_type: 'effect_confirmation'"),
+  fullBookPageSync: pageHookSource.includes(
+    "const GUIDEBOOK_CATEGORIES = ['unique', 'rare', 'normal', 'cursed']",
+  )
+    && pageHookSource.includes('async function synchronizeGuidebookBookPage()')
+    && pageHookSource.includes("kind: 'guidebook_full_sync'")
+    && pageHookSource.includes('count: countMatch ? Number(countMatch[1]) : 1')
+    && fs.readFileSync(path.join(root, 'background.js'), 'utf8')
+      .includes('async function synchronizeGuidebookCurrentOwnership(payload)'),
   cursedBookCapture: pageHookSource.includes('btn_(unique|rare|normal|cursed)_on')
     && pageHookSource.includes("is_cursed: bookCategory === 'cursed'")
     && fs.readFileSync(path.join(root, 'sidepanel.js'), 'utf8')
@@ -1315,6 +1323,7 @@ expect('hit-prediction tab is replaced by the real-time guidebook effect list', 
   manualCaptureRequest: true,
   pageCapture: true,
   bookPageDomCapture: true,
+  fullBookPageSync: true,
   cursedBookCapture: true,
   shopPageDomCapture: true,
   automaticShopRefresh: true,
@@ -4512,6 +4521,81 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
   });
   await context.recordGuidebookCandidates({
     kind: 'guidebook_page_capture',
+    viewEffects: [
+      {
+        status_id: null,
+        name: '完全同期で残る導本',
+        count: 2,
+        source_type: 'effect_confirmation',
+      },
+      {
+        status_id: null,
+        name: '完全同期で消える導本',
+        count: 3,
+        source_type: 'effect_confirmation',
+      },
+    ],
+  });
+  const incompleteSynchronizationResult = await context.synchronizeGuidebookCurrentOwnership({
+    kind: 'guidebook_full_sync',
+    capturedAt: '2026-07-24T08:14:00.000Z',
+    complete: false,
+    synchronizedCategories: ['normal'],
+    viewEffects: [{
+      status_id: null,
+      name: '完全同期で残る導本',
+      count: 1,
+      source_type: 'effect_confirmation',
+      book_category: 'normal',
+    }],
+  });
+  const incompleteSynchronizationEffects = await context.readGuidebookEffects();
+  expect('an incomplete guidebook category scan never clears ownership', {
+    synchronized: incompleteSynchronizationResult,
+    retainedCount: incompleteSynchronizationEffects.find(
+      effect => effect.name === '完全同期で残る導本',
+    )?.count,
+    absentCount: incompleteSynchronizationEffects.find(
+      effect => effect.name === '完全同期で消える導本',
+    )?.count,
+  }, {
+    synchronized: false,
+    retainedCount: 2,
+    absentCount: 3,
+  });
+  await context.synchronizeGuidebookCurrentOwnership({
+    kind: 'guidebook_full_sync',
+    capturedAt: '2026-07-24T08:15:00.000Z',
+    complete: true,
+    synchronizedCategories: ['unique', 'rare', 'normal', 'cursed'],
+    viewEffects: [{
+      status_id: null,
+      name: '完全同期で残る導本',
+      count: 1,
+      source_type: 'effect_confirmation',
+      book_category: 'normal',
+    }],
+  });
+  const fullySynchronizedEffects = await context.readGuidebookEffects();
+  const synchronizedOwned = fullySynchronizedEffects.find(
+    effect => effect.name === '完全同期で残る導本',
+  );
+  const synchronizedRemoved = fullySynchronizedEffects.find(
+    effect => effect.name === '完全同期で消える導本',
+  );
+  expect('opening the guidebook page fully replaces current ownership counts', {
+    retainedCount: synchronizedOwned?.count,
+    absentCount: synchronizedRemoved?.count,
+    synchronizedAt: synchronizedOwned?.lastOwnershipSynchronizedAt,
+    source: synchronizedRemoved?.lastOwnershipSynchronizationSource,
+  }, {
+    retainedCount: 1,
+    absentCount: 0,
+    synchronizedAt: '2026-07-24T08:15:00.000Z',
+    source: 'guidebook_page_full_sync',
+  });
+  await context.recordGuidebookCandidates({
+    kind: 'guidebook_page_capture',
     viewEffects: [{
       status_id: null,
       name: 'R1ショップ価格テスト',
@@ -4934,7 +5018,7 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
     name: '自属性攻撃UP(20%)',
     rarity: 1,
     sources: ['battle_reward', 'event_candidate', 'effect_confirmation'],
-    acquisitionCount: 1,
+    acquisitionCount: 2,
     resetReason: 'new-sortie',
     ownedCount: 0,
     ownedCountKnown: true,
@@ -5104,6 +5188,7 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
       'debuff counting omitted from current version',
       'real-time event-candidate and battle-result guidebook capture using effect names, ID reconciliation, and hit-prediction removal',
       'manual current-Game.view guidebook capture and storage diagnostics for shop/confirmation effects',
+      'automatic all-category guidebook-page ownership synchronization',
       'new-battle reset',
       'compact contribution/character 万/億 formatting',
       'Game.view node inspector test tab',

@@ -1,8 +1,8 @@
 {
   "schema": "gbf-extension-update-v1",
-  "version": "1.13.129",
-  "publishedAt": "2026-07-24T08:00:00.000Z",
-  "notes": "探索序盤T0～T8は価値回収と同時に外周側の未訪問価値エリアへ展開します。",
+  "version": "1.13.130",
+  "publishedAt": "2026-07-24T08:15:00.000Z",
+  "notes": "導本ページを開くと全4カテゴリを巡回し、現在所持中の全導本効果と個数を完全同期します。",
   "data": {
     "guidebookRevision": 1,
     "firstShrinkModelRevision": 1

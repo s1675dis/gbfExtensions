@@ -1554,7 +1554,8 @@ function guidebookRewardsFromPayload(payload) {
 }
 
 function guidebookViewEffectsFromPayload(payload) {
-  if (!['guidebook_manual_capture', 'guidebook_page_capture'].includes(payload?.kind)
+  if (!['guidebook_manual_capture', 'guidebook_page_capture', 'guidebook_full_sync']
+    .includes(payload?.kind)
     || !Array.isArray(payload.viewEffects))
     return [];
   return payload.viewEffects.map((status) => {
@@ -2143,7 +2144,8 @@ async function recordGuidebookCandidates(payload) {
         && previous?.shopSoldOut === false && candidate.shopSoldOut === true;
       const previousCount = Number(previous?.count);
       const candidateCount = Number(candidate?.count);
-      const acquiredFromCount = candidate.sourceTypes?.includes('effect_confirmation')
+      const acquiredFromCount = payload?.kind !== 'guidebook_full_sync'
+        && candidate.sourceTypes?.includes('effect_confirmation')
         && Number.isFinite(previousCount) && Number.isFinite(candidateCount)
         && candidateCount > previousCount;
       if (acquiredFromBattle)
@@ -2177,9 +2179,9 @@ async function recordGuidebookCandidates(payload) {
     }
     const next = sortGuidebookEffects([...byKey.values()]);
     const effectValues = await saveGuidebookEffectsAndValues(next);
-    const capturedEffects = next.filter(
-      effect => capturedKeys.has(guidebookEffectStorageKey(effect)),
-    );
+    const capturedEffects = payload?.kind === 'guidebook_full_sync'
+      ? []
+      : next.filter(effect => capturedKeys.has(guidebookEffectStorageKey(effect)));
     chrome.runtime.sendMessage({
       type: 'GBF_GUIDEBOOK_EFFECTS_UPDATED',
       effects: guidebookEffectsWithIdPlaceholders(next),
@@ -2188,6 +2190,65 @@ async function recordGuidebookCandidates(payload) {
       capturedEffects,
     }).catch(() => {});
     return next;
+  });
+  return true;
+}
+
+async function synchronizeGuidebookCurrentOwnership(payload) {
+  const requiredCategories = new Set(['unique', 'rare', 'normal', 'cursed']);
+  const synchronizedCategories = new Set(
+    Array.isArray(payload?.synchronizedCategories)
+      ? payload.synchronizedCategories.map(String) : [],
+  );
+  if (payload?.kind !== 'guidebook_full_sync' || payload?.complete !== true
+    || [...requiredCategories].some(category => !synchronizedCategories.has(category)))
+    return false;
+  await recordGuidebookCandidates(payload);
+  const synchronizedAt = String(payload?.capturedAt || new Date().toISOString());
+  const ownedCounts = new Map();
+  for (const candidate of guidebookViewEffectsFromPayload(payload)) {
+    const identity = guidebookEffectIdentityName(candidate?.name);
+    const count = Number(candidate?.count);
+    if (!identity || !Number.isFinite(count) || count < 0)
+      continue;
+    ownedCounts.set(identity, Math.max(ownedCounts.get(identity) || 0, count));
+  }
+  await enqueueGuidebookEffectsUpdate(async (effects) => {
+    let changed = false;
+    const next = effects.map((effect) => {
+      if (!normalizeGuidebookEffectName(effect?.name))
+        return effect;
+      const identity = guidebookEffectIdentityName(effect.name);
+      const synchronizedCount = ownedCounts.get(identity) || 0;
+      const sourceTypes = [...new Set([
+        ...(Array.isArray(effect.sourceTypes) ? effect.sourceTypes : []),
+        'effect_confirmation',
+      ])];
+      if (Number(effect.count) === synchronizedCount
+        && effect.lastOwnershipSynchronizedAt === synchronizedAt
+        && sourceTypes.length === (effect.sourceTypes || []).length)
+        return effect;
+      changed = true;
+      return {
+        ...effect,
+        count: synchronizedCount,
+        sourceTypes,
+        lastOwnershipSynchronizedAt: synchronizedAt,
+        lastOwnershipSynchronizationSource: 'guidebook_page_full_sync',
+      };
+    });
+    if (!changed)
+      return effects;
+    const sorted = sortGuidebookEffects(next);
+    const effectValues = await saveGuidebookEffectsAndValues(sorted);
+    chrome.runtime.sendMessage({
+      type: 'GBF_GUIDEBOOK_EFFECTS_UPDATED',
+      effects: guidebookEffectsWithIdPlaceholders(sorted),
+      effectValues,
+      ownershipSynchronized: true,
+      synchronizedAt,
+    }).catch(() => {});
+    return sorted;
   });
   return true;
 }
@@ -3425,7 +3486,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (payload.kind === 'route_field_resync') {
       updateRouteRuntimeFromFieldCapture(tabId, payload.routeState);
     }
-    if (payload.kind === 'ajax' || payload.kind === 'guidebook_rewards'
+    if (payload.kind === 'guidebook_full_sync')
+      synchronizeGuidebookCurrentOwnership(payload).catch(() => {});
+    else if (payload.kind === 'ajax' || payload.kind === 'guidebook_rewards'
       || payload.kind === 'guidebook_page_capture')
       recordGuidebookCandidates(payload).catch(() => {});
     else if (payload.kind === 'miasma_visual') {

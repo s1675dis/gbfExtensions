@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GBF Battle Side Panel",
-  "version": "1.13.129",
+  "version": "1.13.130",
   "description": "GBFの戦闘情報、参戦者順位、最適ルート、導本効果候補を表示します。",
   "permissions": ["sidePanel", "storage", "unlimitedStorage", "tabs", "scripting", "alarms"],
   "host_permissions": [

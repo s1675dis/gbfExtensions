@@ -629,6 +629,63 @@
     return [...byName.values()];
   }
 
+  function activeGuidebookCategory() {
+    const activeBookTabImage = [...document.querySelectorAll(
+      'img[src*="/arcarum3/book/tab/btn_"][src*="_on.png"]',
+    )].find(image => /btn_(?:unique|rare|normal|cursed)_on\.png(?:$|\?)/.test(
+      String(image.currentSrc || image.src || ''),
+    ));
+    return String(activeBookTabImage?.currentSrc || activeBookTabImage?.src || '')
+      .match(/btn_(unique|rare|normal|cursed)_on\.png(?:$|\?)/)?.[1] || null;
+  }
+
+  function captureGuidebookBookPageEffects() {
+    if (!/#arcarum3\/book(?:$|[/?#])/.test(String(location.href)))
+      return [];
+    const bookCategory = activeGuidebookCategory();
+    const effects = [];
+    for (const image of document.querySelectorAll(
+      'img[src*="/arcarum3/assets/icon_book_effect/"]',
+    )) {
+      const row = image.parentElement;
+      if (!row)
+        continue;
+      const effectTextElement = [...row.children].find(element => (
+        element !== image && element.tagName === 'DIV'
+        && String(element.textContent || '').trim()
+      ));
+      const name = String(effectTextElement?.textContent || '').trim();
+      if (!name)
+        continue;
+      const countMatch = String(row.textContent || '')
+        .replace(name, '')
+        .match(/×\s*(\d+)/);
+      const iconType = String(image.currentSrc || image.src || '')
+        .match(/book_effect_(\d+)\.png(?:$|\?)/)?.[1];
+      effects.push({
+        status_id: null,
+        name,
+        rarity: null,
+        icon_category: null,
+        icon_type: iconType === undefined ? null : Number(iconType),
+        is_duplication_possible: null,
+        deck_condition: null,
+        target_type: null,
+        target_param: null,
+        display_ailment_id: null,
+        image: '',
+        bookEffetIcon: String(image.currentSrc || image.src || ''),
+        // このページは所持中の効果だけを列挙する。×表記がない項目は1個所持。
+        count: countMatch ? Number(countMatch[1]) : 1,
+        book_category: bookCategory,
+        is_cursed: bookCategory === 'cursed',
+        source_type: 'effect_confirmation',
+        capture_context: `DOM:#arcarum3/book:${bookCategory || 'unknown'} img[book_effect_*]`,
+      });
+    }
+    return effects;
+  }
+
   function captureGuidebookEffectsFromView() {
     const view = window.Game?.view;
     const eventCandidates = [];
@@ -787,54 +844,7 @@
           rewards.push(...serializeGuidebookRewards(reward));
       }
     }
-    if (/#arcarum3\/book(?:$|[/?#])/.test(String(location.href))) {
-      const activeBookTabImage = [...document.querySelectorAll(
-        'img[src*="/arcarum3/book/tab/btn_"][src*="_on.png"]',
-      )].find(image => /btn_(?:unique|rare|normal|cursed)_on\.png(?:$|\?)/.test(
-        String(image.currentSrc || image.src || ''),
-      ));
-      const bookCategory = String(
-        activeBookTabImage?.currentSrc || activeBookTabImage?.src || '',
-      ).match(/btn_(unique|rare|normal|cursed)_on\.png(?:$|\?)/)?.[1] || null;
-      for (const image of document.querySelectorAll(
-        'img[src*="/arcarum3/assets/icon_book_effect/"]',
-      )) {
-        const row = image.parentElement;
-        if (!row)
-          continue;
-        const effectTextElement = [...row.children].find(element => (
-          element !== image && element.tagName === 'DIV'
-          && String(element.textContent || '').trim()
-        ));
-        const name = String(effectTextElement?.textContent || '').trim();
-        if (!name)
-          continue;
-        const countMatch = String(row.textContent || '')
-          .replace(name, '')
-          .match(/×\s*(\d+)/);
-        const iconType = String(image.currentSrc || image.src || '')
-          .match(/book_effect_(\d+)\.png(?:$|\?)/)?.[1];
-        viewEffects.push({
-          status_id: null,
-          name,
-          rarity: null,
-          icon_category: null,
-          icon_type: iconType === undefined ? null : Number(iconType),
-          is_duplication_possible: null,
-          deck_condition: null,
-          target_type: null,
-          target_param: null,
-          display_ailment_id: null,
-          image: '',
-          bookEffetIcon: String(image.currentSrc || image.src || ''),
-          count: countMatch ? Number(countMatch[1]) : null,
-          book_category: bookCategory,
-          is_cursed: bookCategory === 'cursed',
-          source_type: 'effect_confirmation',
-          capture_context: `DOM:#arcarum3/book:${bookCategory || 'unknown'} img[book_effect_*]`,
-        });
-      }
-    }
+    viewEffects.push(...captureGuidebookBookPageEffects());
     if (/#arcarum3\/dungeon_shop(?:$|[/?#])/.test(String(location.href))) {
       for (const image of document.querySelectorAll(
         '#js-prt-dungeon-shop-content-list '
@@ -918,6 +928,93 @@
     lastGuidebookPageCaptureSignature = signature;
     if (payload.viewEffects.length || payload.rewards.length)
       emit(payload);
+  }
+
+  const GUIDEBOOK_CATEGORIES = ['unique', 'rare', 'normal', 'cursed'];
+  let guidebookFullSyncInProgress = false;
+  let guidebookFullSyncCompletedForVisit = false;
+
+  function guidebookTabImage(category) {
+    return [...document.querySelectorAll(
+      `img[src*="/arcarum3/book/tab/btn_${category}_"]`,
+    )].find(image => new RegExp(
+      `btn_${category}_(?:on|off)\\.png(?:$|\\?)`,
+    ).test(String(image.currentSrc || image.src || ''))) || null;
+  }
+
+  function waitForGuidebookCategory(category, timeoutMs = 2500) {
+    const startedAt = Date.now();
+    return new Promise((resolve) => {
+      const poll = () => {
+        if (activeGuidebookCategory() === category) {
+          setTimeout(() => resolve(true), 120);
+          return;
+        }
+        if (Date.now() - startedAt >= timeoutMs) {
+          resolve(false);
+          return;
+        }
+        setTimeout(poll, 50);
+      };
+      poll();
+    });
+  }
+
+  async function activateGuidebookCategory(category) {
+    if (activeGuidebookCategory() === category)
+      return true;
+    const tabImage = guidebookTabImage(category);
+    if (!tabImage)
+      return false;
+    tabImage.click();
+    return waitForGuidebookCategory(category);
+  }
+
+  async function synchronizeGuidebookBookPage() {
+    if (guidebookFullSyncInProgress || guidebookFullSyncCompletedForVisit
+      || !/#arcarum3\/book(?:$|[/?#])/.test(String(location.href)))
+      return;
+    if (!GUIDEBOOK_CATEGORIES.every(category => guidebookTabImage(category)))
+      return;
+    guidebookFullSyncInProgress = true;
+    const originalCategory = activeGuidebookCategory();
+    const synchronizedEffects = [];
+    const synchronizedCategories = [];
+    try {
+      for (const category of GUIDEBOOK_CATEGORIES) {
+        if (!await activateGuidebookCategory(category))
+          return;
+        synchronizedCategories.push(category);
+        synchronizedEffects.push(...captureGuidebookBookPageEffects());
+      }
+      const uniqueEffects = [...new Map(synchronizedEffects.map(effect => [
+        `${effect.name}:${effect.book_category || ''}`, effect,
+      ])).values()];
+      emit({
+        kind: 'guidebook_full_sync',
+        capturedAt: new Date().toISOString(),
+        viewEffects: uniqueEffects,
+        synchronizedCategories,
+        complete: synchronizedCategories.length === GUIDEBOOK_CATEGORIES.length,
+      });
+      guidebookFullSyncCompletedForVisit = true;
+      lastGuidebookPageCaptureSignature = '';
+    }
+    finally {
+      if (originalCategory && activeGuidebookCategory() !== originalCategory)
+        await activateGuidebookCategory(originalCategory);
+      guidebookFullSyncInProgress = false;
+    }
+  }
+
+  function safelySynchronizeGuidebookBookPage() {
+    if (!/#arcarum3\/book(?:$|[/?#])/.test(String(location.href))) {
+      guidebookFullSyncCompletedForVisit = false;
+      return;
+    }
+    synchronizeGuidebookBookPage().catch(() => {
+      guidebookFullSyncInProgress = false;
+    });
   }
 
   function inspectOwnPropertyContainer(value, path, maxDepth = 10) {
@@ -1324,12 +1421,15 @@
   // 同一配列・同一内容はemit側で除外するため、常時監視して時間窓による取得漏れを防ぐ。
   setInterval(safelyEmitArcarum3GuidebookRewards, 250);
   setInterval(safelyEmitRouteFieldResync, 250);
+  setInterval(safelySynchronizeGuidebookBookPage, 500);
   window.addEventListener('pageshow', safelyEmitArcarum3GuidebookRewards);
   window.addEventListener('pageshow', safelyEmitRouteFieldResync);
+  window.addEventListener('pageshow', safelySynchronizeGuidebookBookPage);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       safelyEmitArcarum3GuidebookRewards();
       safelyEmitRouteFieldResync();
+      safelySynchronizeGuidebookBookPage();
     }
   });
 
@@ -1379,6 +1479,8 @@
           if (/#arcarum3\/(?:dungeon_shop|book)(?:$|[/?#])/.test(String(location.href))) {
             for (const delay of [0, 250, 750])
               setTimeout(emitGuidebookPageCapture, delay);
+            for (const delay of [0, 500, 1000])
+              setTimeout(safelySynchronizeGuidebookBookPage, delay);
           }
         });
         emitFrontFormation();
