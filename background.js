@@ -358,9 +358,14 @@ async function checkOnlineUpdates() {
   }
 }
 
-function scheduleOnlineUpdateChecks() {
+async function scheduleOnlineUpdateChecks() {
   if (!chrome.alarms?.create)
     return;
+  if (chrome.alarms.get) {
+    const existing = await chrome.alarms.get(ONLINE_UPDATE_ALARM);
+    if (existing)
+      return;
+  }
   chrome.alarms.create(ONLINE_UPDATE_ALARM, {
     delayInMinutes: 1,
     periodInMinutes: ONLINE_UPDATE_INTERVAL_MINUTES,
@@ -532,6 +537,38 @@ function observeGuidebookSortieState(tabId, routeState) {
     })
     .catch(() => {});
   guidebookSortieQueues.set(tabId, nextQueue);
+}
+
+function isExplicitGuidebookSortieStart(payload) {
+  const url = String(payload?.url || '');
+  if (!/\/rest\/arcarum3\/start_dungeon(?:[/?]|$)/.test(url))
+    return false;
+  const response = normalizeResponseData(payload?.responseData) ?? payload?.responseData;
+  if (!response || typeof response !== 'object' || response.error)
+    return false;
+  return Object.hasOwn(response, 'redirect_scene')
+    || Object.hasOwn(response, 'tutorial_info')
+    || response.success === true;
+}
+
+function observeExplicitGuidebookSortieStart(tabId, payload) {
+  if (!Number.isInteger(tabId) || !isExplicitGuidebookSortieStart(payload))
+    return false;
+  const markerKey = guidebookSortieStateStorageKey(tabId);
+  const previousQueue = guidebookSortieQueues.get(tabId) || Promise.resolve();
+  const nextQueue = previousQueue
+    .catch(() => {})
+    .then(async () => {
+      await resetGuidebookCurrentOwnership('start-dungeon');
+      await chrome.storage.local.remove(markerKey);
+      await chrome.storage.session.remove(routeFirstShrinkCircleStorageKey(tabId));
+    })
+    .catch(() => {});
+  guidebookSortieQueues.set(tabId, nextQueue);
+  routeRuntimeCache.delete(tabId);
+  routeFirstShrinkLearningSignatures.delete(tabId);
+  chrome.runtime.sendMessage({ type: 'GBF_ROUTE_STATE_UPDATED', tabId }).catch(() => {});
+  return true;
 }
 
 function createEmptyAjaxTrace() {
@@ -2951,6 +2988,8 @@ function applyRouteDungeonItemUpdate(next, update) {
 function updateRouteRuntimeState(tabId, payload) {
   const response = payload?.responseData;
   const url = String(payload?.url || '');
+  if (observeExplicitGuidebookSortieStart(tabId, payload))
+    return;
   const isBattleStart = /\/rest\/(?:raid|multiraid)\/start\.json/.test(url);
   if (isBattleStart) {
     const previous = routeRuntimeCache.get(tabId);

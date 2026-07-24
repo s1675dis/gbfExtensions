@@ -1,8 +1,8 @@
 {
   "schema": "gbf-extension-update-v1",
-  "version": "1.13.126",
-  "publishedAt": "2026-07-24T00:00:00.000Z",
-  "notes": "オンライン更新確認と共有データの自動更新に対応しました。",
+  "version": "1.13.127",
+  "publishedAt": "2026-07-24T07:30:00.000Z",
+  "notes": "start_dungeonを新規探索の確定境界として導本所持数と探索ランタイムをリセットします。",
   "data": {
     "guidebookRevision": 1,
     "firstShrinkModelRevision": 1

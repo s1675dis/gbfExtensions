@@ -1,5 +1,14 @@
 # 新セッションへの引き継ぎ
 
+## v1.13.127: start_dungeonによる新規探索確定
+
+- 実測ログは`retire_dungeon`成功後、編成選択を経て`/rest/arcarum3/start_dungeon`を呼ぶ。成功応答は`redirect_scene`と`tutorial_info`を持つ。
+- 直後の`/arcarum3/dungeon/content/index/0`は`map_id: 3 / current_node_id: 1 / total_turn: 0 / 訪問済みnode 1件 / 通貨0`だった。
+- `start_dungeon`成功を新規探索の一次判定に追加した。導本辞書の現在所持数`count`を0へ戻し、タブ別探索マーカー、前探索のルートランタイム、第一次収縮円、重複学習署名を破棄する。
+- 導本の定義・ID・レアリティ・累積観測履歴と、全探索共有の第一次収縮学習モデルは保持する。
+- 従来のターン・訪問済みnode巻き戻り判定は、開始Ajaxを取りこぼした場合のフォールバックとして維持する。
+- 同名alarmをService Worker起動ごとに作り直して定期更新時刻を延期しないよう、既存alarmがある場合は再作成しない。
+
 ## v1.13.126: GitHub経由のオンライン更新
 
 - `s1675dis/gbfExtensions`の`update/channel.json`を起動時・インストール時・6時間ごと・手動操作時に確認する。

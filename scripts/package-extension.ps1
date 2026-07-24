@@ -8,12 +8,11 @@ $manifest = Get-Content -LiteralPath (Join-Path $workspace "manifest.json") -Raw
   ConvertFrom-Json
 $version = [string]$manifest.version
 $output = Join-Path $workspace $OutputDirectory
-$stage = Join-Path $output "gbf-extension"
+$stage = Join-Path ([System.IO.Path]::GetTempPath()) (
+  "gbf-extension-$version-" + [guid]::NewGuid().ToString("N")
+)
 $archive = Join-Path $output "gbf-extension-$version.zip"
 
-if (Test-Path -LiteralPath $stage) {
-  Remove-Item -LiteralPath $stage -Recurse -Force
-}
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
 
 $files = @(
@@ -37,4 +36,10 @@ if (Test-Path -LiteralPath $archive) {
   Remove-Item -LiteralPath $archive -Force
 }
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $archive
+try {
+  Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction Stop
+}
+catch {
+  Write-Warning "一時フォルダーを削除できませんでした: $stage"
+}
 Write-Output $archive

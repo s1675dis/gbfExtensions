@@ -4892,6 +4892,53 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
     ownedCountKnown: true,
     total: 0,
   });
+  await context.recordGuidebookCandidates({
+    kind: 'guidebook_page_capture',
+    viewEffects: [{
+      status_id: 778,
+      name: '通常攻撃のヒット数増加(＋1)',
+      rarity: 1,
+      count: 3,
+      source_type: 'effect_confirmation',
+    }],
+  });
+  localStorageData['guidebook-sortie-state:v1:502'] = {
+    mapId: 4,
+    totalTurn: 22,
+    currentNodeId: 70,
+    visitedNodeIds: [1, 2, 3],
+    nodeCount: 100,
+  };
+  vm.runInContext("routeRuntimeCache.set(502, { nodes: [{ id: 70 }], currentNodeId: 70 })", context);
+  context.updateRouteRuntimeState(502, {
+    kind: 'ajax',
+    url: 'https://game.granbluefantasy.jp/rest/arcarum3/start_dungeon',
+    requestData: '{"dungeon_id":1,"deck_id":30991}',
+    responseData: {
+      redirect_scene: null,
+      tutorial_info: {
+        start_tutorial_id: null,
+        select_id: null,
+        message_list: [],
+      },
+    },
+  });
+  await vm.runInContext('guidebookSortieQueues.get(502)', context);
+  const explicitStartEffects = await context.readGuidebookEffects();
+  const explicitStartEffect = explicitStartEffects.find(effect => Number(effect.id) === 778);
+  expect('successful start_dungeon is an explicit new-sortie boundary', {
+    count: explicitStartEffect?.count,
+    name: explicitStartEffect?.name,
+    resetReason: explicitStartEffect?.currentOwnershipResetReason,
+    markerRemoved: localStorageData['guidebook-sortie-state:v1:502'] === undefined,
+    runtimeRemoved: vm.runInContext('routeRuntimeCache.has(502)', context),
+  }, {
+    count: 0,
+    name: '通常攻撃のヒット数増加(＋1)',
+    resetReason: 'start-dungeon',
+    markerRemoved: true,
+    runtimeRemoved: false,
+  });
   console.log(JSON.stringify({
     passed: true,
     checked: [
@@ -4935,6 +4982,7 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
       'portable idempotent guidebook JSON export and import',
       'guidebook multi-unit parsing, separate value persistence, compound effects, flags, ID-scoped chase totals, and active-only display',
       'new-sortie current guidebook ownership reset without catalog loss',
+      'explicit start_dungeon new-sortie reset from captured lifecycle Ajax',
     ],
   }, null, 2));
 }).catch(error => {

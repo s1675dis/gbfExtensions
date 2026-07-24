@@ -15,6 +15,7 @@ node unit-test-v2.cjs
 - GitHub更新channelの形式検証とバージョン数値比較
 - オンライン導本辞書・第一次収縮モデルの非破壊統合
 - 更新確認UIとGitHub Releases導線
+- 実測`start_dungeon`成功による導本所持数・前探索ランタイムの確定リセット
 - 同一戦闘での累計与ダメージ保持
 - 同一 `raid_id` のstart再受信によるリセット防止
 - ページリロード後の同一戦闘状態復元

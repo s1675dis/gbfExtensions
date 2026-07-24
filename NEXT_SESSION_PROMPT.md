@@ -2,7 +2,7 @@
 
 以下を新しいセッションの最初のPromptとして使用してください。
 
-補足: 現在の最新バージョンはv1.13.126。GitHubの`update/channel.json`を6時間ごとに確認し、導本辞書・第一次収縮共有モデルはJSONで自動統合する。コード版更新はGitHub Releasesへの導線を表示する。詳細は`docs/ONLINE_UPDATE.md`を参照。撤退→再出撃はタブ別`guidebook-sortie-state:v1:<tabId>`のターン・訪問済みnode巻き戻りで検出し、導本辞書の現在所持数`count`だけを0へ戻す。派生`guidebook-effect-values:v1`は即時再生成する。名称・ID・レアリティ・解析・累積観測履歴は保持し、同じ探索のリロードではリセットしない。
+補足: 現在の最新バージョンはv1.13.127。GitHubの`update/channel.json`を6時間ごとに確認し、導本辞書・第一次収縮共有モデルはJSONで自動統合する。コード版更新はGitHub Releasesへの導線を表示する。詳細は`docs/ONLINE_UPDATE.md`を参照。`/rest/arcarum3/start_dungeon`成功を新規探索の確定境界とし、導本辞書の現在所持数`count`、タブ別探索マーカー、前探索のルートランタイムと第一次収縮円をリセットする。ターン・訪問済みnode巻き戻り判定もフォールバックとして残す。派生`guidebook-effect-values:v1`は即時再生成する。名称・ID・レアリティ・解析・累積観測履歴は保持し、同じ探索のリロードではリセットしない。
 
 補足: 現在の最新バージョンはv1.13.124。第一次収縮は`route-first-shrink-models:v1`の永続学習モデルを最優先し、未観測patternでは`limitCircle.position`と半径670から初期推定する。収縮完了時に安全／瘴気node境界を自動フィットし、map/base pattern/pattern/day単位で最大20観測の中央値へ更新する。フィールド250ms再同期とAjaxから自動実行し、補正済み円を第2収縮開始円へ渡す。手動採取は不要。
 
