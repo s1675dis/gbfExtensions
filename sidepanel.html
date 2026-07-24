@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GBF Battle</title>
+    <link rel="stylesheet" href="sidepanel.css">
+  </head>
+  <body>
+    <div id="guidebook-toast-layer" class="guidebook-toast-layer"
+      role="status" aria-live="polite" aria-atomic="false"></div>
+    <main>
+      <nav class="view-tabs" aria-label="表示切替">
+        <button class="view-tab active" type="button" data-view="battle">戦闘</button>
+        <button class="view-tab" type="button" data-view="guidebook">導本リスト</button>
+        <button class="view-tab" type="button" data-view="feature-test">新機能テスト</button>
+        <button class="view-tab" type="button" data-view="route-plan">最適ルート</button>
+      </nav>
+      <div class="online-update-bar" role="status" aria-live="polite">
+        <span id="online-update-status">更新情報を確認中…</span>
+        <button id="check-online-update" type="button">更新確認</button>
+        <button id="open-online-update" type="button" hidden>配布ページ</button>
+      </div>
+      <div class="guidebook-diagnostics-bar">
+        <button id="copy-guidebook-diagnostics" type="button">導本未取得をコピー</button>
+        <span id="guidebook-diagnostics-status">未取得時は表示中の画面で押してください</span>
+      </div>
+
+      <div class="view-panel active" data-panel="battle">
+      <section class="card damage-card">
+        <div class="label">与ダメージ合計</div>
+        <div id="total-damage" class="damage-value">0</div>
+      </section>
+
+      <section class="card battle-meta">
+        <div class="participants">参戦者数 <strong id="participant-count">0/0</strong></div>
+        <div class="participation-id">
+          <span>参戦ID</span><code id="participation-id">---</code>
+          <button id="copy-id" type="button" disabled>コピー</button>
+        </div>
+      </section>
+
+      <section class="card turns-card">
+        <div id="stats-turn" class="turn-number"></div>
+        <div class="turn-columns">
+          <div class="turn-panel current">
+            <h2>現在ターン</h2>
+            <div class="turn-stat"><span>hit数</span><strong id="current-hit">0</strong></div>
+            <div class="turn-stat"><span>アビダメ</span><strong id="current-ability">0</strong></div>
+            <div class="turn-stat"><span>奥義ダメ</span><strong id="current-special">0</strong></div>
+            <div class="turn-stat total"><span>総合ダメ</span><strong id="current-total">0</strong></div>
+          </div>
+          <div class="turn-panel previous">
+            <h2>前ターン</h2>
+            <div class="turn-stat"><span>hit数</span><strong id="previous-hit">0</strong></div>
+            <div class="turn-stat"><span>アビダメ</span><strong id="previous-ability">0</strong></div>
+            <div class="turn-stat"><span>奥義ダメ</span><strong id="previous-special">0</strong></div>
+            <div class="turn-stat total"><span>総合ダメ</span><strong id="previous-total">0</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card character-card">
+        <h1>キャラクター別</h1>
+        <div id="characters" class="character-list"></div>
+      </section>
+
+      <section class="card ranking-card">
+        <h1>貢献度順位</h1>
+        <div id="ranking" class="ranking-grid"></div>
+      </section>
+      </div>
+
+      <div class="view-panel" data-panel="guidebook">
+        <section class="card guidebook-card">
+          <div class="guidebook-heading">
+            <div>
+              <h1>導本効果リスト</h1>
+              <small id="guidebook-count">0件</small>
+            </div>
+            <div class="guidebook-actions">
+              <button id="capture-guidebook-effects" type="button">現在画面から取得</button>
+              <button id="inspect-guidebook-storage" type="button">格納場所を調査</button>
+              <button id="refresh-guidebook-effects" type="button">更新</button>
+              <button id="copy-guidebook-effects" type="button" disabled>一覧をコピー</button>
+              <button id="export-guidebook-effects" type="button" disabled>JSON保存</button>
+              <button id="import-guidebook-effects" type="button">JSON読込</button>
+              <input id="import-guidebook-file" type="file" accept="application/json,.json" hidden>
+            </div>
+          </div>
+          <p class="test-note">候補画面に表示された全効果をAjaxから自動記録します。獲得は不要です。</p>
+          <section class="guidebook-r1-summary" aria-labelledby="guidebook-calculator-heading">
+            <div class="guidebook-r1-heading">
+              <h2 id="guidebook-calculator-heading">獲得導本効果</h2>
+              <small id="guidebook-calculator-status">所持情報待ち</small>
+            </div>
+            <h3 class="guidebook-calculator-group-title">割合効果</h3>
+            <div id="guidebook-percent-summary" class="guidebook-r1-grid"></div>
+            <h3 class="guidebook-calculator-group-title">固定値・個数・回数</h3>
+            <div id="guidebook-count-summary" class="guidebook-r1-grid"></div>
+            <h3 class="guidebook-calculator-group-title">特殊効果</h3>
+            <div id="guidebook-flag-summary" class="guidebook-flag-grid">
+              <span class="guidebook-calculator-empty">所持効果なし</span>
+            </div>
+          </section>
+          <div class="guidebook-filters">
+            <select id="guidebook-state-filter" aria-label="導本取得状態">
+              <option value="all">すべて</option>
+              <option value="missing">未獲得</option>
+              <option value="known">獲得済み</option>
+              <option value="unknown-id">ID不明</option>
+            </select>
+            <input id="guidebook-filter" class="guidebook-filter" type="search" placeholder="ID・効果名で絞り込み">
+          </div>
+          <p id="guidebook-status" class="guidebook-status">候補の表示待ち</p>
+          <div id="guidebook-list" class="guidebook-list"></div>
+        </section>
+      </div>
+
+      <div class="view-panel" data-panel="feature-test">
+        <section class="card ajax-trace-card">
+          <h1>Ajax状態更新履歴</h1>
+          <p class="test-note">記録開始後に移動・戦闘・イベントを行い、レスポンス内の現在地・ターン・通貨・収縮候補を採取します。画面用の直近履歴は開始時に消去されますが、完全履歴は永続ログへ追記されます。</p>
+          <div class="ajax-trace-actions">
+            <button id="start-ajax-trace" type="button">記録開始</button>
+            <button id="stop-ajax-trace" type="button" disabled>停止</button>
+            <button id="refresh-ajax-trace" type="button">更新</button>
+            <button id="clear-ajax-trace" type="button">クリア</button>
+            <button id="copy-ajax-trace" type="button" disabled>コピー</button>
+            <button id="save-ajax-trace" type="button" disabled>JSON保存</button>
+          </div>
+          <p id="ajax-trace-status" class="ajax-trace-status">停止中 / 0件</p>
+          <div id="ajax-trace-candidates" class="ajax-trace-candidates"></div>
+          <div id="ajax-trace-history" class="ajax-trace-history"></div>
+          <div class="ajax-archive-heading">
+            <h2>永続ログ</h2>
+            <div class="ajax-trace-actions">
+              <button id="refresh-ajax-archives" type="button">一覧更新</button>
+              <button id="clear-ajax-archives" type="button">全削除</button>
+            </div>
+          </div>
+          <p id="ajax-archive-status" class="ajax-trace-status">Chrome管理のAppData領域へ記録します</p>
+          <div id="ajax-archive-list" class="ajax-archive-list"></div>
+        </section>
+        <section class="card node-inspector-card">
+          <h1>Game.view.data ノード取得</h1>
+          <p class="test-note"><code>window.Game.view.data</code> 以下の全own propertyを、階層制限なしで取得します。</p>
+          <div class="node-inspector-actions">
+            <button id="capture-game-nodes" type="button">取得</button>
+            <button id="copy-game-nodes" type="button" disabled>コピー</button>
+            <button id="save-game-nodes" type="button" disabled>JSON保存</button>
+          </div>
+          <p id="node-inspector-status" class="node-inspector-status">未取得</p>
+          <pre id="node-inspector-output" class="node-inspector-output"></pre>
+        </section>
+        <section class="card node-inspector-card">
+          <h1>第一次収縮・最終半径解析</h1>
+          <p class="test-note">円中心、パターンID、全ノード座標と収縮判定、描画用の <code>miasmaEffectInfo</code> をまとめて取得します。第一次収縮完了時（level 1 / status 2 または step 100）に取得してください。</p>
+          <div class="node-inspector-actions">
+            <button id="capture-miasma-analysis" type="button">取得</button>
+            <button id="copy-miasma-analysis" type="button" disabled>コピー</button>
+            <button id="save-miasma-analysis" type="button" disabled>JSON保存</button>
+          </div>
+          <p id="miasma-analysis-status" class="node-inspector-status">未取得</p>
+          <pre id="miasma-analysis-output" class="node-inspector-output"></pre>
+        </section>
+      </div>
+
+      <div class="view-panel" data-panel="route-plan">
+        <section class="card route-card">
+          <div class="route-heading">
+            <div>
+              <h1>最適ルート</h1>
+              <p class="test-note">現在地から指定した座標半径内を表示し、収縮とボス配置に合わせて再計算します。</p>
+            </div>
+            <div class="route-heading-controls">
+              <label class="route-radius-control">表示半径
+                <input id="route-map-radius" type="number" min="200" max="1600" step="50" value="600">
+              </label>
+              <button id="refresh-route-plan" type="button">再取得</button>
+            </div>
+          </div>
+          <div id="route-state-summary" class="route-state-summary"></div>
+          <p id="route-plan-status" class="route-plan-status">ページからノード情報を取得してください</p>
+          <div id="route-map" class="route-map" role="img" aria-label="現在地周辺のノードマップ"></div>
+          <div class="route-legend">
+            <span><i class="current"></i>現在地</span>
+            <span><i class="route"></i>推奨</span>
+            <span><i class="miasma"></i>瘴気</span>
+            <span><i class="boss"></i>ボス</span>
+          </div>
+          <div class="route-result-heading">
+            <h2>推奨手順</h2>
+            <div class="route-result-actions">
+              <small id="route-plan-mode">待機中</small>
+              <button id="copy-route-plan-report" type="button" disabled>Codex報告をコピー</button>
+            </div>
+          </div>
+          <div id="route-plan-steps" class="route-plan-steps"></div>
+          <div class="route-observation-heading">
+            <div>
+              <h2>特殊イベント座標記録</h2>
+              <small id="route-observation-count">0件</small>
+            </div>
+            <div class="route-observation-actions">
+              <button id="copy-current-route-event" type="button" disabled>今のイベントをコピー</button>
+            </div>
+          </div>
+          <div id="route-observation-list" class="route-observation-list"></div>
+        </section>
+  <section class="card route-experiment-card">
+    <div class="route-experiment-heading">
+      <div>
+        <h1>収縮・座標シミュレーション</h1>
+        <p class="test-note">第一次は保存済み学習モデルを優先し、未観測時は円画像の左上座標と半径670から推定します。完了時の安全／瘴気node境界で自動補正し、第二次は補正済み円をボスへ向けて縮小します。</p>
+      </div>
+      <div class="route-experiment-actions">
+        <small>実験用</small>
+        <button id="copy-route-experiment-report" type="button" disabled>Codex報告をコピー</button>
+      </div>
+    </div>
+          <p id="route-experiment-status" class="route-plan-status">収縮円の座標情報を取得してください</p>
+          <div id="route-experiment-metrics" class="route-experiment-metrics"></div>
+          <div id="route-experiment-map" class="route-experiment-map" role="img" aria-label="収縮シミュレーションの全体マップ"></div>
+          <div class="route-experiment-legend">
+            <span><i class="current-boundary"></i>現在の計算境界</span>
+            <span><i class="final-boundary"></i>最終安全点・安置</span>
+            <span><i class="simulated-miasma"></i>シミュレート瘴気</span>
+          </div>
+        </section>
+      </div>
+
+      <p id="status" class="status">戦闘開始を待っています</p>
+    </main>
+    <script src="route-planner.js"></script>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

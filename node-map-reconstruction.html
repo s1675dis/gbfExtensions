@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Node Map Reconstruction</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Node Map Reconstruction" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Node Map Reconstruction&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;gbf-node-reconstruction&quot;&gt;
+  &lt;div class=&quot;viz-controls&quot;&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;gbf-node-select&quot;&gt;選択ノード
+      &lt;select id=&quot;gbf-node-select&quot; class=&quot;form-select&quot;&gt;&lt;/select&gt;
+    &lt;/label&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;card&quot; aria-live=&quot;polite&quot;&gt;
+    &lt;div id=&quot;gbf-node-detail&quot; class=&quot;viz-row&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;svg id=&quot;gbf-node-map&quot; role=&quot;img&quot; aria-labelledby=&quot;gbf-node-map-title gbf-node-map-desc&quot; preserveAspectRatio=&quot;xMidYMid meet&quot;&gt;
+    &lt;title id=&quot;gbf-node-map-title&quot;&gt;取得データから再構成したノード接続図&lt;/title&gt;
+    &lt;desc id=&quot;gbf-node-map-desc&quot;&gt;153個のノードと216本の接続線。ノードを選択すると種別、座標、隣接ノード、状態を確認できます。&lt;/desc&gt;
+    &lt;g id=&quot;gbf-edge-layer&quot;&gt;&lt;/g&gt;
+    &lt;g id=&quot;gbf-node-layer&quot;&gt;&lt;/g&gt;
+  &lt;/svg&gt;
+  &lt;div id=&quot;gbf-node-legend&quot; class=&quot;viz-row text-small&quot; aria-label=&quot;ノード種別凡例&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;style&gt;
+  #gbf-node-reconstruction { display: grid; gap: 12px; width: 100%; }
+  #gbf-node-reconstruction .card { padding: 12px; }
+  #gbf-node-reconstruction .form-label { min-width: min(100%, 260px); }
+  #gbf-node-map { display: block; width: 100%; height: auto; aspect-ratio: 1.65 / 1; color: var(--foreground); touch-action: manipulation; }
+  #gbf-node-map .edge { stroke: var(--border); stroke-width: 4; vector-effect: non-scaling-stroke; }
+  #gbf-node-map .node { cursor: pointer; opacity: .58; transition: opacity .15s ease, filter .15s ease; }
+  #gbf-node-map .node.is-visited { opacity: .95; }
+  #gbf-node-map .node.is-selected { opacity: 1; filter: drop-shadow(0 0 10px var(--ring)); }
+  #gbf-node-map .node-shape { fill: color-mix(in srgb, var(--node-color) 68%, var(--background)); stroke: var(--node-color); stroke-width: 3; vector-effect: non-scaling-stroke; }
+  #gbf-node-map .node.is-selected .node-shape { stroke: var(--ring); stroke-width: 6; }
+  #gbf-node-map .node.is-miasma .node-shape { stroke-dasharray: 8 5; }
+  #gbf-node-map .node-label { fill: var(--foreground); font-size: 17px; font-weight: 500; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  #gbf-node-legend .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+  #gbf-node-legend .legend-mark { width: 10px; height: 10px; border-radius: 50%; background: var(--node-color); }
+  @media (prefers-reduced-motion: reduce) { #gbf-node-map .node { transition: none; } }
+&lt;/style&gt;
+
+&lt;script&gt;
+(() =&gt; {
+  const root = document.getElementById(&#x27;gbf-node-reconstruction&#x27;);
+  if (!root) return;
+  const DATA={&quot;descriptions&quot;:[2,null,&quot;戦闘&quot;,&quot;敵が出現するマス&quot;,3,null,&quot;強敵&quot;,&quot;戦闘マスよりも&lt;br&gt;強い敵が出現するマス&quot;,11,null,&quot;超強敵&quot;,&quot;強敵よりも更に強い&lt;br&gt;敵が出現するマス&quot;,4,null,&quot;君臨者&quot;,&quot;特定のエリアに&lt;br&gt;君臨する恐るべき&lt;br&gt;強さの敵が出現するマス&quot;,1,null,&quot;ボス&quot;,&quot;探索の目的となる&lt;br&gt;ボスが出現するマス&lt;br&gt;ボスバトルは&lt;br&gt;撤退できません&quot;,6,null,&quot;宝箱&quot;,&quot;導本効果を1つ選択して&lt;br&gt;入手するマス&quot;,5,null,&quot;イベント&quot;,&quot;ランダムなイベントが&lt;br&gt;発生するマス&lt;br&gt;イベントマスで発生する&lt;br&gt;バトルは撤退できません&quot;,9,null,&quot;転移&quot;,&quot;もう1つの転移マスに&lt;br&gt;移動できるマス&quot;,8,null,&quot;ショップ&quot;,&quot;セフィラコインで&lt;br&gt;買い物ができるマス&quot;,7,null,&quot;回復&quot;,&quot;味方全体のHPを&lt;br&gt;30%回復し、&lt;br&gt;戦闘不能の味方を&lt;br&gt;復活させるマス&quot;,10,2,&quot;狂信者&quot;,&quot;邪教祖を崇める敵が&lt;br&gt;出現するマス&quot;,10,3,&quot;狂信者&quot;,&quot;邪教祖を崇める敵が&lt;br&gt;出現するマス&quot;,10,1,&quot;邪教祖&quot;,&quot;狂信者が存在するほど&lt;br&gt;強くなる敵が&lt;br&gt;出現するマス&quot;,10,8,&quot;浮遊城の研究者&quot;,&quot;浮遊城の研究者が&lt;br&gt;出現するマス&quot;,10,5,&quot;浮遊城への転移&quot;,&quot;複数ある中のいずれかが&lt;br&gt;浮遊城へと繋がるマス&quot;,10,6,&quot;浮遊城への転移&quot;,&quot;複数ある中のいずれかが&lt;br&gt;浮遊城へと繋がるマス&quot;,10,7,&quot;浮遊城への転移&quot;,&quot;複数ある中のいずれかが&lt;br&gt;浮遊城へと繋がるマス&quot;,10,4,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,9,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,10,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,11,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,12,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,13,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,14,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,15,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,16,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,17,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;,10,18,&quot;特殊イベント&quot;,&quot;その場所に対応した&lt;br&gt;特定のイベントが&lt;br&gt;発生するマス&quot;],&quot;edges&quot;:[1,21,1,60,1,62,1,84,2,35,2,81,2,83,2,86,3,22,3,61,3,106,3,107,4,35,4,126,4,127,5,73,5,76,5,78,6,101,6,102,6,103,6,104,7,138,7,139,7,142,7,143,9,43,9,51,9,52,10,61,10,62,10,63,11,66,11,67,11,81,12,79,12,80,12,87,12,89,13,77,13,92,13,93,14,22,14,109,14,110,15,28,15,117,15,121,17,141,17,150,17,152,17,153,18,147,18,149,18,153,19,132,19,136,19,145,20,40,20,41,20,43,20,44,21,55,21,56,21,66,22,60,22,108,23,45,23,48,23,49,23,65,24,69,24,70,24,80,25,34,25,76,26,128,26,129,26,135,26,140,27,85,27,86,27,126,28,114,28,115,29,120,29,123,30,109,30,126,31,49,31,50,31,63,31,65,32,143,32,154,33,131,33,133,34,93,34,94,36,37,36,96,37,38,37,46,38,44,39,40,39,44,41,42,42,52,42,53,43,50,44,45,45,46,46,47,47,48,47,98,50,62,51,56,51,57,52,56,53,54,54,55,55,56,55,67,57,62,58,66,58,84,59,60,59,108,64,65,64,106,66,82,67,68,68,69,70,72,71,72,71,78,71,80,72,73,73,74,74,75,75,76,75,95,76,93,77,79,77,88,79,88,81,87,82,83,84,85,85,108,89,90,90,91,90,92,91,127,91,128,92,128,94,155,95,130,96,97,96,98,97,99,98,99,98,101,99,100,100,102,103,105,104,105,105,107,105,112,109,151,110,111,110,122,111,112,111,124,112,113,113,114,113,125,114,115,115,116,116,117,117,118,118,119,118,120,119,148,120,121,121,123,122,123,122,150,123,124,124,125,126,152,127,140,129,155,130,131,130,155,131,132,133,134,133,135,134,155,135,138,136,137,136,138,137,144,139,140,140,141,141,142,142,154,143,144,144,145,144,146,145,146,146,147,147,148,149,150,150,151,153,154],&quot;nodes&quot;:[1,1134,634,0,null,false,false,false,2,1604,580,0,null,true,false,false,3,960,931,0,null,true,false,false,4,1703,974,0,null,true,false,false,5,2156,321,4,null,false,false,true,6,568,1030,4,null,false,false,true,7,1971,1295,4,null,false,false,true,9,813,332,0,10,true,false,false,10,989,648,10,9,true,false,false,11,1411,285,0,null,false,false,false,12,1832,350,10,11,false,false,false,13,2052,617,0,null,false,false,false,14,1090,994,0,null,true,false,false,15,910,1419,10,14,false,false,false,17,1597,1062,0,null,false,false,false,18,1543,1331,0,null,false,false,false,19,2396,1466,0,null,false,true,false,20,637,293,0,null,true,false,false,21,1253,389,0,null,true,false,false,22,1141,887,0,null,true,false,false,23,527,730,0,null,true,false,false,24,1691,169,2,null,false,false,true,25,2351,554,5,null,false,false,false,26,2109,1008,2,null,false,false,true,27,1579,775,0,null,true,false,false,28,704,1390,5,null,false,false,false,29,1264,1376,5,null,false,false,false,30,1374,949,0,null,true,false,false,31,709,563,0,null,true,false,false,32,1785,1507,2,null,false,false,true,33,2435,1262,5,null,false,false,false,34,2267,743,5,null,false,false,false,35,1739,721,5,null,false,false,false,36,144,775,5,null,false,false,false,37,223,644,0,null,false,false,false,38,330,527,5,null,false,false,false,39,436,431,0,null,true,false,false,40,537,352,0,null,true,false,false,41,765,236,0,null,false,false,false,42,836,198,5,null,false,false,false,43,686,405,0,null,true,false,false,44,568,479,0,null,true,false,false,45,462,575,0,null,true,false,false,46,366,672,0,null,true,false,false,47,298,777,0,null,true,false,false,48,417,766,0,null,true,false,false,49,596,623,3,null,true,false,true,50,825,473,0,null,false,false,false,51,966,399,0,null,true,false,false,52,940,285,5,null,false,false,false,53,996,197,8,null,false,false,false,54,1134,207,0,null,false,false,false,55,1233,255,8,null,true,false,false,56,1093,302,0,null,false,false,false,57,1126,451,11,null,true,false,true,58,1242,568,5,null,false,false,false,59,1280,720,0,null,false,false,false,60,1095,771,2,null,false,false,true,61,940,755,0,null,true,false,false,62,940,520,0,null,true,false,false,63,847,628,7,null,false,false,false,64,803,771,0,null,true,false,false,65,685,706,0,null,true,false,false,66,1360,408,0,null,true,false,false,67,1306,197,0,null,true,false,false,68,1531,263,6,null,false,false,false,69,1593,196,2,null,false,false,true,70,1801,198,0,null,false,false,false,71,1909,213,6,null,false,false,false,72,2008,196,5,null,false,false,false,73,2134,198,0,null,false,false,false,74,2295,230,5,null,false,false,false,75,2359,378,0,null,false,false,false,76,2235,479,11,null,false,false,true,77,2095,467,2,null,false,false,true,78,2004,303,2,null,false,false,true,79,1951,395,5,null,false,false,false,80,1751,251,0,null,false,false,false,81,1635,310,5,null,false,false,false,82,1537,442,0,null,true,false,false,83,1436,543,0,null,true,false,false,84,1360,637,2,null,false,false,true,85,1410,758,0,null,true,false,false,86,1531,664,0,null,true,false,false,87,1726,499,0,null,false,false,false,88,1912,510,3,null,false,false,true,89,1816,605,0,null,false,false,false,90,1918,692,2,null,false,false,true,91,1832,797,3,null,false,false,true,92,2046,786,0,null,false,false,false,93,2199,605,0,null,false,false,false,94,2418,723,8,null,false,false,false,95,2544,659,5,null,false,false,false,96,113,909,5,null,false,false,false,97,130,1020,0,null,false,false,false,98,257,946,3,null,false,false,true,99,225,1048,2,null,false,false,true,100,279,1143,0,null,false,false,false,101,399,989,5,null,false,false,false,102,453,1132,2,null,false,false,true,103,613,913,0,null,false,false,false,104,729,1019,5,null,false,false,false,105,858,1014,0,null,false,false,false,106,836,889,0,null,true,false,false,107,989,1064,5,null,false,false,false,108,1251,867,0,null,true,false,false,109,1250,1027,11,null,true,false,true,110,1149,1135,9,null,false,false,false,111,983,1202,7,null,false,false,false,112,839,1126,5,null,false,false,false,113,729,1210,5,null,false,false,false,114,611,1290,7,null,false,false,false,115,602,1439,0,null,false,false,false,116,749,1545,8,null,false,false,false,117,913,1588,0,null,false,false,false,118,1079,1605,8,null,false,false,false,119,1258,1593,0,null,false,false,false,120,1238,1492,0,null,false,false,false,121,1075,1459,2,null,false,false,true,122,1217,1236,5,null,false,false,false,123,1137,1334,6,null,false,false,false,124,1012,1334,5,null,false,false,false,125,862,1276,0,null,false,false,false,126,1568,946,0,null,true,false,false,127,1866,963,2,null,false,false,true,128,2002,909,5,null,false,false,false,129,2227,913,9,null,false,false,false,130,2465,910,0,null,false,false,false,131,2455,1117,2,null,false,false,true,132,2490,1328,0,null,false,true,false,133,2373,1123,0,null,false,false,false,134,2316,1019,3,null,false,false,true,135,2216,1115,5,null,false,false,false,136,2272,1259,6,null,false,false,false,137,2199,1399,5,null,false,false,false,138,2119,1265,0,null,false,false,false,139,2044,1115,8,null,false,false,false,140,1892,1069,0,null,false,false,false,141,1774,1194,5,null,false,false,false,142,1816,1343,6,null,false,false,false,143,1943,1430,5,null,false,false,false,144,2086,1461,3,null,false,false,true,145,2227,1577,0,null,false,false,false,146,1982,1642,2,null,false,false,true,147,1732,1631,0,null,false,false,false,148,1478,1587,5,null,false,false,false,149,1393,1470,2,null,false,false,true,150,1377,1275,0,null,false,false,false,151,1393,1131,2,null,false,false,true,152,1472,1027,3,null,false,false,true,153,1623,1250,7,null,false,false,false,154,1709,1369,0,null,false,false,false,155,2402,884,5,null,false,false,false]};
+  const nodes=[]; for(let i=0;i&lt;DATA.nodes.length;i+=8){nodes.push({id:DATA.nodes[i],x:DATA.nodes[i+1],y:DATA.nodes[i+2],type:DATA.nodes[i+3],special:DATA.nodes[i+4],visited:DATA.nodes[i+5],miasma:DATA.nodes[i+6],quest:DATA.nodes[i+7]});}
+  const edges=[]; for(let i=0;i&lt;DATA.edges.length;i+=2)edges.push([DATA.edges[i],DATA.edges[i+1]]);
+  const descriptions=[]; for(let i=0;i&lt;DATA.descriptions.length;i+=4)descriptions.push({type:DATA.descriptions[i],special:DATA.descriptions[i+1],name:DATA.descriptions[i+2],comment:DATA.descriptions[i+3]});
+  const byId=new Map(nodes.map(n=&gt;[n.id,n]));
+  const adjacency=new Map(nodes.map(n=&gt;[n.id,[]]));
+  edges.forEach(([a,b])=&gt;{adjacency.get(a)?.push(b);adjacency.get(b)?.push(a);});
+  const descriptionFor=(node)=&gt;descriptions.find(d=&gt;d.type===node.type&amp;&amp;d.special===node.special)||descriptions.find(d=&gt;d.type===node.type&amp;&amp;d.special===null)||{name:node.type===0?&#x27;通常ノード&#x27;:`種別 ${node.type}`,comment:&#x27;&#x27;};
+  const colorFor=(type)=&gt;({0:&#x27;var(--muted-foreground)&#x27;,2:&#x27;var(--viz-series-1)&#x27;,3:&#x27;var(--viz-series-2)&#x27;,4:&#x27;var(--destructive)&#x27;,5:&#x27;var(--viz-series-3)&#x27;,6:&#x27;var(--viz-series-4)&#x27;,7:&#x27;var(--viz-series-5)&#x27;,8:&#x27;var(--viz-series-6)&#x27;,9:&#x27;var(--accent-foreground)&#x27;,10:&#x27;var(--secondary-foreground)&#x27;,11:&#x27;var(--destructive)&#x27;})[type]||&#x27;var(--foreground)&#x27;;
+  const svg=root.querySelector(&#x27;#gbf-node-map&#x27;); const edgeLayer=root.querySelector(&#x27;#gbf-edge-layer&#x27;); const nodeLayer=root.querySelector(&#x27;#gbf-node-layer&#x27;); const select=root.querySelector(&#x27;#gbf-node-select&#x27;); const detail=root.querySelector(&#x27;#gbf-node-detail&#x27;); const legend=root.querySelector(&#x27;#gbf-node-legend&#x27;);
+  const minX=Math.min(...nodes.map(n=&gt;n.x))-70,maxX=Math.max(...nodes.map(n=&gt;n.x))+70,minY=Math.min(...nodes.map(n=&gt;n.y))-70,maxY=Math.max(...nodes.map(n=&gt;n.y))+70; svg.setAttribute(&#x27;viewBox&#x27;,`${minX} ${minY} ${maxX-minX} ${maxY-minY}`);
+  const ns=&#x27;http://www.w3.org/2000/svg&#x27;;
+  edges.forEach(([a,b])=&gt;{const from=byId.get(a),to=byId.get(b);if(!from||!to)return;const line=document.createElementNS(ns,&#x27;line&#x27;);line.setAttribute(&#x27;class&#x27;,&#x27;edge&#x27;);line.setAttribute(&#x27;x1&#x27;,from.x);line.setAttribute(&#x27;y1&#x27;,from.y);line.setAttribute(&#x27;x2&#x27;,to.x);line.setAttribute(&#x27;y2&#x27;,to.y);edgeLayer.appendChild(line);});
+  nodes.slice().sort((a,b)=&gt;a.id-b.id).forEach(node=&gt;{const d=descriptionFor(node);const option=document.createElement(&#x27;option&#x27;);option.value=node.id;option.textContent=`#${node.id} · ${d.name}`;select.appendChild(option);const group=document.createElementNS(ns,&#x27;g&#x27;);group.setAttribute(&#x27;class&#x27;,`node${node.visited?&#x27; is-visited&#x27;:&#x27;&#x27;}${node.miasma?&#x27; is-miasma&#x27;:&#x27;&#x27;}`);group.dataset.id=node.id;group.style.setProperty(&#x27;--node-color&#x27;,colorFor(node.type));const circle=document.createElementNS(ns,&#x27;circle&#x27;);circle.setAttribute(&#x27;class&#x27;,&#x27;node-shape&#x27;);circle.setAttribute(&#x27;cx&#x27;,node.x);circle.setAttribute(&#x27;cy&#x27;,node.y);circle.setAttribute(&#x27;r&#x27;,node.quest?25:21);const label=document.createElementNS(ns,&#x27;text&#x27;);label.setAttribute(&#x27;class&#x27;,&#x27;node-label&#x27;);label.setAttribute(&#x27;x&#x27;,node.x);label.setAttribute(&#x27;y&#x27;,node.y);label.textContent=node.id;const title=document.createElementNS(ns,&#x27;title&#x27;);title.textContent=`#${node.id} ${d.name}`;group.append(circle,label,title);group.addEventListener(&#x27;click&#x27;,()=&gt;selectNode(node.id));nodeLayer.appendChild(group);});
+  function selectNode(id){const node=byId.get(Number(id));if(!node)return;select.value=String(node.id);nodeLayer.querySelectorAll(&#x27;.node&#x27;).forEach(el=&gt;el.classList.toggle(&#x27;is-selected&#x27;,Number(el.dataset.id)===node.id));const d=descriptionFor(node);const states=[node.visited?&#x27;訪問済み&#x27;:&#x27;未訪問&#x27;,node.miasma?&#x27;瘴気あり&#x27;:null,node.quest?&#x27;クエスト判定あり&#x27;:null].filter(Boolean).join(&#x27; / &#x27;);detail.replaceChildren();const main=document.createElement(&#x27;strong&#x27;);main.textContent=`#${node.id} ${d.name}`;const meta=document.createElement(&#x27;span&#x27;);meta.className=&#x27;text-muted&#x27;;meta.textContent=`座標 (${node.x}, ${node.y}) · nodeType ${node.type}${node.special!==null?` / special ${node.special}`:&#x27;&#x27;} · ${states} · 隣接 ${adjacency.get(node.id).join(&#x27;, &#x27;)}`;detail.append(main,meta);}
+  select.addEventListener(&#x27;change&#x27;,()=&gt;selectNode(select.value));
+  [...new Set(nodes.map(n=&gt;n.type))].sort((a,b)=&gt;a-b).forEach(type=&gt;{const sample=nodes.find(n=&gt;n.type===type),d=descriptionFor(sample),item=document.createElement(&#x27;span&#x27;);item.className=&#x27;legend-item&#x27;;item.style.setProperty(&#x27;--node-color&#x27;,colorFor(type));const mark=document.createElement(&#x27;span&#x27;);mark.className=&#x27;legend-mark&#x27;;const label=document.createElement(&#x27;span&#x27;);label.textContent=`${d.name} (${nodes.filter(n=&gt;n.type===type).length})`;item.append(mark,label);legend.appendChild(item);});
+  selectNode(nodes.find(n=&gt;n.visited)?.id||nodes[0].id);
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "schema": "gbf-extension-update-v1",
+  "version": "1.13.126",
+  "publishedAt": "2026-07-24T00:00:00.000Z",
+  "notes": "オンライン更新確認と共有データの自動更新に対応しました。",
+  "data": {
+    "guidebookRevision": 1,
+    "firstShrinkModelRevision": 1
+  }
+}

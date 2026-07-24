@@ -1,0 +1,9 @@
+dist/
+*.crx
+*.pem
+*.log
+.agents/
+.codex/
+gbf-ajax-traces/
+gbf-*.json
+!data/*.json
