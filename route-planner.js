@@ -17,6 +17,7 @@
   const SECOND_SHRINK_DURATION_TURNS = 20;
   const FIRST_SHRINK_SAFE_ARRIVAL_BUFFER_TURNS = 5;
   const MAX_LEADING_VALUE_TURNS = 4;
+  const INITIAL_OUTER_EXPANSION_END_TURN = 8;
   const FIRST_SHRINK_FALLBACK_RADIUS = 670;
   const FIRST_SHRINK_PATTERN_MODELS = [
     {
@@ -1505,6 +1506,95 @@
     return shrinkStarted ? 'day-two-shrink' : 'day-two-early';
   }
 
+  function isInitialOuterExpansionPhase(state) {
+    return dangerPhase(state) === 'first-day'
+      && !Boolean(state?.miasma?.active)
+      && Number(state?.totalTurn) <= INITIAL_OUTER_EXPANSION_END_TURN;
+  }
+
+  function createInitialOuterContext(state, graph) {
+    if (!isInitialOuterExpansionPhase(state))
+      return null;
+    const coordinateNodes = state.nodes.filter(node => graph.byId.has(node.id)
+      && Number.isFinite(Number(node.x)) && Number.isFinite(Number(node.y))
+      && !isFloatingCastleBodyNode(node, state.nodes));
+    if (coordinateNodes.length < 3)
+      return null;
+    const xs = coordinateNodes.map(node => Number(node.x));
+    const ys = coordinateNodes.map(node => Number(node.y));
+    const center = {
+      x: (Math.min(...xs) + Math.max(...xs)) / 2,
+      y: (Math.min(...ys) + Math.max(...ys)) / 2,
+    };
+    const radii = new Map(coordinateNodes.map(node => [
+      node.id,
+      Math.hypot(Number(node.x) - center.x, Number(node.y) - center.y),
+    ]));
+    const maximumRadius = Math.max(1, ...radii.values());
+    const score = nodeId => Math.max(0, Math.min(1,
+      Number(radii.get(nodeId) || 0) / maximumRadius));
+    return {
+      center,
+      maximumRadius,
+      startScore: score(state.currentNodeId),
+      score,
+    };
+  }
+
+  function initialOuterFrontierValue(
+    state, graph, startId, visited, currency, shops, outerContext,
+  ) {
+    if (!outerContext)
+      return 0;
+    const startScore = outerContext.score(startId);
+    const queue = [{ id: startId, depth: 0 }];
+    const seen = new Set([startId]);
+    let total = 0;
+    while (queue.length) {
+      const current = queue.shift();
+      if (current.depth >= 3)
+        continue;
+      for (const adjacentId of graph.adjacency.get(current.id) || []) {
+        if (seen.has(adjacentId))
+          continue;
+        seen.add(adjacentId);
+        const depth = current.depth + 1;
+        const node = graph.byId.get(adjacentId);
+        if (!node)
+          continue;
+        if (!visited.has(adjacentId)) {
+          const utility = gainUtility(nodeGain(node, visited, currency, shops, state));
+          if (utility > 0) {
+            const nodeScore = outerContext.score(adjacentId);
+            const directionFactor = nodeScore >= startScore - 0.05
+              ? 1 + Math.max(0, nodeScore - startScore)
+              : 0.15;
+            total += utility * directionFactor / depth;
+          }
+        }
+        queue.push({ id: adjacentId, depth });
+      }
+    }
+    return total;
+  }
+
+  function candidateTotalUtility(candidate) {
+    return candidate.treasure * 6 + candidate.cultLeader * 4
+      + candidate.fanatic * 3 + candidate.special * 3
+      + candidate.dangerValue + candidate.activity * 2
+      + candidate.shop * 5 + candidate.floatingCastle;
+  }
+
+  function initialOuterCandidateScore(candidate, efficiency) {
+    return candidateTotalUtility(candidate) * 5
+      + Number(candidate.outerValueScore || 0) * 1.5
+      + Number(candidate.outerFrontierValue || 0) * 0.8
+      + Number(candidate.outerProgress || 0) * 5
+      + Number(candidate.firstStepOuterProgress || 0) * 2
+      - Number(candidate.inwardMovement || 0) * 2
+      + efficiency * 3;
+  }
+
   function dangerNodeValue(node, state) {
     if (!DANGER_TYPES.has(node?.type))
       return 0;
@@ -1621,6 +1711,19 @@
       'treasure', 'cultLeader', 'fanatic', 'special', 'dangerValue',
       'activity', 'shop', 'floatingCastle',
     ].every(key => Number(a[key] || 0) === Number(b[key] || 0));
+    const comparableInitialOuterRoutes = a.initialOuterPhase && b.initialOuterPhase
+      && aStrictDamage === bStrictDamage
+      && aLeadingValueDelay === bLeadingValueDelay
+      && a.expiringValue === b.expiringValue
+      && a.lateExpiringValue === b.lateExpiringValue
+      && aEffectiveEmpty === bEffectiveEmpty
+      && a.turnbackPenalty === b.turnbackPenalty;
+    if (comparableInitialOuterRoutes) {
+      const aInitialScore = initialOuterCandidateScore(a, aEfficiency);
+      const bInitialScore = initialOuterCandidateScore(b, bEfficiency);
+      if (Math.abs(aInitialScore - bInitialScore) > 0.01)
+        return bInitialScore - aInitialScore;
+    }
     if (sameCollectedValue && aStrictDamage === bStrictDamage
       && aMiasmaDamage === bMiasmaDamage && aExposure === bExposure
       && aEffectiveEmpty === bEffectiveEmpty
@@ -2128,6 +2231,7 @@
     );
     const expiringTargetDistances = distancesToTargets(graph, expiringValueNodeIds);
     const coreIds = estimateCoreNodeIds(state, graph, deadlines);
+    const initialOuterContext = createInitialOuterContext(state, graph);
     const initialEvacuation = preferredFirstDayEvacuation(
       graph, state.currentNodeId, deadlines, state.totalTurn, coreIds, [state.currentNodeId],
       state, 0, initialVisited,
@@ -2156,6 +2260,15 @@
       firstExpiringArrival: Infinity,
       firstValueArrival: Infinity,
       outerSweepDistance: 0,
+      initialOuterPhase: Boolean(initialOuterContext),
+      outerValueScore: 0,
+      outerFrontierValue: initialOuterFrontierValue(
+        state, graph, state.currentNodeId, initialVisited,
+        state.currency, 0, initialOuterContext,
+      ),
+      outerProgress: 0,
+      firstStepOuterProgress: 0,
+      inwardMovement: 0,
       latePhase: dangerPhase(state) !== 'first-day',
     }];
     let best = null;
@@ -2224,6 +2337,11 @@
           const visited = new Set(candidate.visited);
           visited.add(nextId);
           const nextPath = [...candidate.path, nextId];
+          const currentOuterScore = initialOuterContext
+            ? initialOuterContext.score(candidate.id) : 0;
+          const nextOuterScore = initialOuterContext
+            ? initialOuterContext.score(nextId) : 0;
+          const startOuterScore = initialOuterContext?.startScore || 0;
           const previousId = candidate.path.at(-2);
           const immediateTurnback = previousId === nextId;
           const hasForwardExit = [...(graph.adjacency.get(nextId) || [])]
@@ -2305,6 +2423,18 @@
                   state, graph, candidate.id, node,
                 )
                 : 0),
+            initialOuterPhase: candidate.initialOuterPhase,
+            outerValueScore: candidate.outerValueScore
+              + (gainedValueNode ? gainUtility(gain) * nextOuterScore : 0),
+            outerProgress: Math.max(
+              Number(candidate.outerProgress) || 0,
+              nextOuterScore - startOuterScore,
+            ),
+            firstStepOuterProgress: candidate.path.length === 1
+              ? nextOuterScore - startOuterScore
+              : candidate.firstStepOuterProgress,
+            inwardMovement: candidate.inwardMovement
+              + Math.max(0, currentOuterScore - nextOuterScore),
             latePhase: candidate.latePhase,
           };
           item.valueNodeCount = candidate.valueNodeCount + (gainedValueNode ? 1 : 0);
@@ -2313,6 +2443,10 @@
               graph, nextId, visited, item.currency, item.shops, state,
             )
             : (item.valueNodeCount > 1 ? 0 : candidate.continuationGap);
+          item.outerFrontierValue = initialOuterFrontierValue(
+            state, graph, nextId, visited, item.currency, item.shops,
+            initialOuterContext,
+          );
           nextBeam.push(item);
           const harmlessFallback = item.empty === 0 && item.danger === 0 && item.revisit === 0;
           if (harmlessFallback && (!bestFallback || compareCandidates(item, bestFallback) < 0))
@@ -2390,6 +2524,7 @@
       options.fallbackHops ?? 4,
     );
     const deadlines = estimateUnsafeTurns(state, graph);
+    const initialOuterStrategyActive = Boolean(createInitialOuterContext(state, graph));
     const firstShrinkSimulation = simulateFirstShrinkArea(state);
     const secondShrinkSimulation = simulateSecondShrinkArea(state, graph);
     // The miasma payload can retain the first-day boss target after the battle.
@@ -2420,7 +2555,9 @@
       const expiringValueNodeIds = collectFutureExpiringValueNodeIds(
         state, deadlines, new Set(state.nodes.filter(node => node.isVisited).map(node => node.id)),
       );
-      if (path.some(id => expiringValueNodeIds.has(id)))
+      if (initialOuterStrategyActive)
+        mode = 'initial-outer';
+      else if (path.some(id => expiringValueNodeIds.has(id)))
         mode = 'first-shrink-outer';
     }
     if (path.length <= 1) {
@@ -2468,6 +2605,8 @@
       transferDecision,
       mode,
       phase: dangerPhase(state),
+      initialOuterStrategyActive,
+      initialOuterExpansionEndTurn: INITIAL_OUTER_EXPANSION_END_TURN,
       miasmaTraversalAllowed: state.miasma.active
         && Number(state.miasma.level) === 1
         && Number(state.miasma.status) === 1,

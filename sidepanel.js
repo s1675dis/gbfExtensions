@@ -2095,6 +2095,8 @@ function createRoutePlanReport(plan) {
     planner: {
       mode: plan.mode,
       phase: plan.phase,
+      initialOuterStrategyActive: plan.initialOuterStrategyActive,
+      initialOuterExpansionEndTurn: plan.initialOuterExpansionEndTurn,
       warning: plan.warning || null,
       fallbackReason: plan.fallbackReason || null,
       localRadius: plan.localRadius,
@@ -2406,11 +2408,13 @@ function renderRoutePlan(routeState) {
     ? 'ボス到達優先'
     : (plan.mode === 'boss-detour'
       ? 'ボス到達前の安全な寄り道'
-      : (plan.mode === 'first-shrink-outer'
-        ? '第一次収縮・安置外回収優先'
-        : (plan.mode === 'fallback'
-          ? '安全優先の暫定ルート'
-          : (plan.mode === 'blocked' ? '安全な移動先なし' : '価値ノード回収'))));
+      : (plan.mode === 'initial-outer'
+        ? '探索序盤・価値回収＋外周展開'
+        : (plan.mode === 'first-shrink-outer'
+          ? '第一次収縮・安置外回収優先'
+          : (plan.mode === 'fallback'
+            ? '安全優先の暫定ルート'
+            : (plan.mode === 'blocked' ? '安全な移動先なし' : '価値ノード回収')))));
   const transferText = plan.transferDecision?.action === 'transfer'
     ? ' / 転送する'
     : '';

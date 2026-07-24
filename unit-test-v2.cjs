@@ -2016,6 +2016,54 @@ expect('completed first shrink sweeps an equal-value cycle from the outer node i
   outerDistance: 663,
   innerDistance: 492,
 });
+const initialOuterExpansionFixture = {
+  currentNodeId: 1,
+  totalTurn: 0,
+  currency: 0,
+  dayOneBossDefeated: false,
+  miasma: { active: false, level: null, status: null },
+  nodes: [
+    { id: 1, type: 0, x: 30, y: 50, adjacentIds: [2, 4, 7, 9], isVisited: true },
+    { id: 2, type: 5, x: 15, y: 50, adjacentIds: [1, 3] },
+    { id: 3, type: 5, x: 0, y: 50, adjacentIds: [2, 6] },
+    { id: 6, type: 0, x: 0, y: 60, adjacentIds: [3, 7], isVisited: true },
+    { id: 7, type: 0, x: 30, y: 0, adjacentIds: [1, 6], isVisited: true },
+    { id: 4, type: 5, x: 40, y: 50, adjacentIds: [1, 5] },
+    { id: 5, type: 5, x: 50, y: 50, adjacentIds: [4, 8] },
+    { id: 8, type: 0, x: 100, y: 50, adjacentIds: [5, 9], isVisited: true },
+    { id: 9, type: 0, x: 30, y: 100, adjacentIds: [1, 8], isVisited: true },
+  ],
+};
+const initialOuterExpansionPlan = routePlanner.planRoute(
+  initialOuterExpansionFixture,
+  { maxSteps: 2 },
+);
+expect('turn-zero equal-value routes expand toward the map perimeter', {
+  firstStep: initialOuterExpansionPlan.path[1],
+  path: initialOuterExpansionPlan.path,
+  mode: initialOuterExpansionPlan.mode,
+  active: initialOuterExpansionPlan.initialOuterStrategyActive,
+  endTurn: initialOuterExpansionPlan.initialOuterExpansionEndTurn,
+}, {
+  firstStep: 2,
+  path: [1, 2, 3],
+  mode: 'initial-outer',
+  active: true,
+  endTurn: 8,
+});
+const initialOuterKeepsTreasurePriorityPlan = routePlanner.planRoute({
+  ...initialOuterExpansionFixture,
+  nodes: initialOuterExpansionFixture.nodes.map(node => (
+    node.id === 4 ? { ...node, type: 6 } : node
+  )),
+}, { maxSteps: 1 });
+expect('initial outer expansion does not override a clearly higher-value treasure', {
+  firstStep: initialOuterKeepsTreasurePriorityPlan.path[1],
+  mode: initialOuterKeepsTreasurePriorityPlan.mode,
+}, {
+  firstStep: 4,
+  mode: 'initial-outer',
+});
 expect('route node visuals use requested emoji and semantic color keys', [
   routePlanner.nodeVisual({ type: 2 }),
   routePlanner.nodeVisual({ type: 3 }),
@@ -5066,6 +5114,7 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
       'combat/event processing-turn estimates and five-turn first-shrink evacuation reserve',
       'first-shrink danger-free evacuation fallback when it still reaches permanent safety before completion',
       'completed first-shrink outer-to-inner equal-value sweep without bridge preference',
+      'turn-zero value-aware outer expansion without overriding treasure priority',
       'explicit day phase and turn-22 first-day ruler evacuation-endpoint exclusion',
     'late-phase value-density routing, processed-node return timing, and fixed events 9/11/13/14/16/17/18',
       'random floating-castle transfer risk near first-shrink completion and during second shrink',
