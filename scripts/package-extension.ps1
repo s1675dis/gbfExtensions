@@ -13,6 +13,7 @@ $stage = Join-Path ([System.IO.Path]::GetTempPath()) (
 )
 $archive = Join-Path $output "gbf-extension-$version.zip"
 
+New-Item -ItemType Directory -Path $output -Force | Out-Null
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
 
 $files = @(
