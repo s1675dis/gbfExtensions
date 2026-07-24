@@ -31,6 +31,7 @@ const guidebookSortieQueues = new Map();
 const routeRuntimeCache = new Map();
 const routeFirstShrinkLearningQueues = new Map();
 const routeFirstShrinkLearningSignatures = new Map();
+const routeSessionGenerations = new Map();
 const ROUTE_CONSUMED_ON_DEPARTURE_TYPES = new Set([2, 5, 6, 7]);
 const ROUTE_PASSED_DANGER_TYPES = new Set([3, 4, 11]);
 const ROUTE_NON_COORDINATE_SPECIAL_TYPES = new Set([1, 2, 3, 5, 6, 7, 8]);
@@ -92,6 +93,8 @@ function normalizeRouteFirstShrinkCircle(circle) {
 }
 
 async function saveRouteFirstShrinkCircle(tabId, circle) {
+  if (routeRuntimeCache.get(tabId)?.routeSessionStarting)
+    throw new Error('新しい探索のMAP初期状態を待っています');
   const normalized = normalizeRouteFirstShrinkCircle(circle);
   if (!normalized)
     throw new Error('Invalid first-shrink circle snapshot');
@@ -417,7 +420,9 @@ function mergeRouteFirstShrinkLearningObservation(previous, observation) {
   });
 }
 
-async function learnRouteFirstShrinkModel(tabId, routeState) {
+async function learnRouteFirstShrinkModel(tabId, routeState, expectedGeneration = 0) {
+  if ((routeSessionGenerations.get(tabId) || 0) !== expectedGeneration)
+    return null;
   const observation = globalThis.GbfRoutePlanner
     ?.createFirstShrinkLearningObservation(routeState);
   if (!observation)
@@ -439,6 +444,8 @@ async function learnRouteFirstShrinkModel(tabId, routeState) {
     capturedAt: Date.now(),
   });
   const models = await readRouteFirstShrinkLearnedModels();
+  if ((routeSessionGenerations.get(tabId) || 0) !== expectedGeneration)
+    return null;
   const index = models.findIndex(model => model.key === observation.key);
   const learned = mergeRouteFirstShrinkLearningObservation(
     index >= 0 ? models[index] : null,
@@ -450,7 +457,11 @@ async function learnRouteFirstShrinkModel(tabId, routeState) {
     models[index] = learned;
   else
     models.push(learned);
+  if ((routeSessionGenerations.get(tabId) || 0) !== expectedGeneration)
+    return null;
   await chrome.storage.local.set({ [ROUTE_FIRST_SHRINK_MODELS_KEY]: models });
+  if ((routeSessionGenerations.get(tabId) || 0) !== expectedGeneration)
+    return null;
   const circle = await saveRouteFirstShrinkCircle(tabId, {
     center: learned.finalCenter,
     radius: learned.finalRadius,
@@ -472,10 +483,11 @@ async function learnRouteFirstShrinkModel(tabId, routeState) {
 }
 
 function scheduleRouteFirstShrinkLearning(tabId, routeState) {
+  const generation = routeSessionGenerations.get(tabId) || 0;
   const previous = routeFirstShrinkLearningQueues.get(tabId) || Promise.resolve();
   const next = previous
     .catch(() => {})
-    .then(() => learnRouteFirstShrinkModel(tabId, routeState))
+    .then(() => learnRouteFirstShrinkModel(tabId, routeState, generation))
     .catch(() => null);
   routeFirstShrinkLearningQueues.set(tabId, next);
 }
@@ -551,6 +563,15 @@ function isExplicitGuidebookSortieStart(payload) {
     || response.success === true;
 }
 
+function isInitialRouteStateForStartedSession(routeState) {
+  const nodes = Array.isArray(routeState?.nodes)
+    ? routeState.nodes
+    : (Array.isArray(routeState?.node_list) ? routeState.node_list : []);
+  const turn = routeNumber(routeState?.totalTurn ?? routeState?.total_turn);
+  const visitedCount = nodes.filter(node => Boolean(node?.isVisited ?? node?.is_visited)).length;
+  return nodes.length > 1 && turn !== null && turn <= 1 && visitedCount <= 1;
+}
+
 function observeExplicitGuidebookSortieStart(tabId, payload) {
   if (!Number.isInteger(tabId) || !isExplicitGuidebookSortieStart(payload))
     return false;
@@ -559,15 +580,46 @@ function observeExplicitGuidebookSortieStart(tabId, payload) {
   const nextQueue = previousQueue
     .catch(() => {})
     .then(async () => {
+      await chrome.storage.session.remove(routeFirstShrinkCircleStorageKey(tabId));
       await resetGuidebookCurrentOwnership('start-dungeon');
       await chrome.storage.local.remove(markerKey);
-      await chrome.storage.session.remove(routeFirstShrinkCircleStorageKey(tabId));
     })
     .catch(() => {});
   guidebookSortieQueues.set(tabId, nextQueue);
-  routeRuntimeCache.delete(tabId);
+  const generation = (routeSessionGenerations.get(tabId) || 0) + 1;
+  routeSessionGenerations.set(tabId, generation);
+  const routeSessionId = `${Date.now()}:${tabId}:${generation}`;
+  routeRuntimeCache.set(tabId, {
+    routeSessionId,
+    routeSessionStarting: true,
+    routeSessionStartedAt: new Date().toISOString(),
+    nodes: [],
+    partyMembers: [],
+    dungeonItems: [],
+    miasmaDamageRates: {},
+    inferredConsumedNodeIds: [],
+    passedDangerNodeIds: [],
+    shrinkingNodeIds: [],
+    miasma: {},
+    currentNodeId: null,
+    actualCurrentNodeId: null,
+    floatingCastleReturnNodeId: null,
+    warpDeclinedAtNodeId: null,
+    specialEventObservation: null,
+    dayOneBossDefeated: false,
+    firstShrinkFinalCircle: null,
+    mapId: null,
+    totalTurn: null,
+    shopPoint: 0,
+    updatedAt: new Date().toISOString(),
+  });
+  routeFirstShrinkLearningQueues.delete(tabId);
   routeFirstShrinkLearningSignatures.delete(tabId);
-  chrome.runtime.sendMessage({ type: 'GBF_ROUTE_STATE_UPDATED', tabId }).catch(() => {});
+  chrome.runtime.sendMessage({
+    type: 'GBF_ROUTE_SESSION_STARTED',
+    tabId,
+    routeSessionId,
+  }).catch(() => {});
   return true;
 }
 
@@ -3019,6 +3071,9 @@ function updateRouteRuntimeState(tabId, payload) {
     return;
   const dungeon = response?.option?.dungeon || response;
   const previous = routeRuntimeCache.get(tabId) || { nodes: [], miasma: {} };
+  if (previous.routeSessionStarting && Array.isArray(dungeon?.node_list)
+    && !isInitialRouteStateForStartedSession(dungeon))
+    return;
   const next = {
     ...previous,
     nodes: (previous.nodes || []).map(node => ({ ...node })),
@@ -3064,8 +3119,11 @@ function updateRouteRuntimeState(tabId, payload) {
   const nodes = transientFloatingCastleNodeList ? null : incomingNodes;
   if (nodes?.length)
     next.nodes = nodes;
-  if (nodes?.length)
+  if (nodes?.length) {
+    next.routeSessionStarting = false;
+    next.routeSessionInitializedAt = new Date().toISOString();
     next.shrinkingNodeIds = nodes.filter(node => node.isShrinking).map(node => node.id);
+  }
   const currentNodeId = routeNumber(
     dungeon.after_current_node_id ?? dungeon.current_node_id
       ?? (isNodeMovement ? request.node_id ?? request.nodeId : null),
@@ -3241,10 +3299,16 @@ function updateRouteRuntimeFromFieldCapture(tabId, routeState) {
   if (!routeState || !Array.isArray(routeState.nodes) || !routeState.nodes.length)
     return null;
   const previous = routeRuntimeCache.get(tabId) || {};
+  if (previous.routeSessionStarting && !isInitialRouteStateForStartedSession(routeState))
+    return null;
   // The field capture is newer than the battle-time runtime. Pass it as the
   // authoritative side of the merge so stale pre-battle miasma fields cannot
   // overwrite the newly visible contraction stage, coordinates, or turn.
   const next = mergeRouteStates(previous, routeState);
+  if (previous.routeSessionStarting) {
+    next.routeSessionStarting = false;
+    next.routeSessionInitializedAt = new Date().toISOString();
+  }
   next.updatedAt = routeState.capturedAt || new Date().toISOString();
   routeRuntimeCache.set(tabId, next);
   observeGuidebookSortieState(tabId, next);
@@ -3275,10 +3339,25 @@ async function requestGameViewNodeInspection(tabId) {
 }
 
 async function requestRoutePlanningState(tabId) {
+  const startingState = routeRuntimeCache.get(tabId);
+  if (startingState?.routeSessionStarting) {
+    return {
+      routeState: null,
+      routeSessionStarting: true,
+      routeSessionId: startingState.routeSessionId,
+    };
+  }
   const response = await requestPageCapture(tabId, 'GBF_CAPTURE_ROUTE_STATE');
   const savedFirstShrinkCircle = await readRouteFirstShrinkCircle(tabId);
   const learnedModels = await readRouteFirstShrinkLearnedModels();
   const runtimeState = routeRuntimeCache.get(tabId) || {};
+  if (runtimeState.routeSessionStarting) {
+    return {
+      routeState: null,
+      routeSessionStarting: true,
+      routeSessionId: runtimeState.routeSessionId,
+    };
+  }
   if (savedFirstShrinkCircle)
     runtimeState.firstShrinkFinalCircle = savedFirstShrinkCircle;
   runtimeState.firstShrinkLearnedModels = learnedModels;
@@ -3535,6 +3614,9 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   ajaxTraceCache.delete(tabId);
   ajaxTraceQueues.delete(tabId);
   routeRuntimeCache.delete(tabId);
+  routeFirstShrinkLearningQueues.delete(tabId);
+  routeFirstShrinkLearningSignatures.delete(tabId);
+  routeSessionGenerations.delete(tabId);
   chrome.storage.session.remove(storageKey(tabId));
   chrome.storage.session.remove(ajaxTraceStorageKey(tabId));
   chrome.storage.session.remove(routeFirstShrinkCircleStorageKey(tabId));

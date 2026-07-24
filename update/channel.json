@@ -1,8 +1,8 @@
 {
   "schema": "gbf-extension-update-v1",
-  "version": "1.13.127",
-  "publishedAt": "2026-07-24T07:30:00.000Z",
-  "notes": "start_dungeonを新規探索の確定境界として導本所持数と探索ランタイムをリセットします。",
+  "version": "1.13.128",
+  "publishedAt": "2026-07-24T07:45:00.000Z",
+  "notes": "start_dungeonでルート最適化全体を初期化し、新MAPのT0状態を取得してから計算を再開します。",
   "data": {
     "guidebookRevision": 1,
     "firstShrinkModelRevision": 1

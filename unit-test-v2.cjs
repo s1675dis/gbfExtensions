@@ -4909,7 +4909,26 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
     visitedNodeIds: [1, 2, 3],
     nodeCount: 100,
   };
-  vm.runInContext("routeRuntimeCache.set(502, { nodes: [{ id: 70 }], currentNodeId: 70 })", context);
+  vm.runInContext(`routeRuntimeCache.set(502, {
+    nodes: [{ id: 70, isVisited: true, isShrinking: true }],
+    currentNodeId: 70,
+    actualCurrentNodeId: 999,
+    floatingCastleReturnNodeId: 70,
+    warpDeclinedAtNodeId: 70,
+    totalTurn: 22,
+    mapId: 4,
+    shopPoint: 800,
+    dungeonItems: [{ id: 4, count: 1 }],
+    partyMembers: [{ id: 1, hp: 10 }],
+    inferredConsumedNodeIds: [20],
+    passedDangerNodeIds: [21],
+    shrinkingNodeIds: [70],
+    miasma: { active: true, level: 2 },
+    miasmaDamageRates: { 1: 10 },
+    specialEventObservation: { nodeId: 70 },
+    dayOneBossDefeated: true,
+    firstShrinkFinalCircle: { center: { x: 100, y: 100 }, radius: 670 },
+  })`, context);
   context.updateRouteRuntimeState(502, {
     kind: 'ajax',
     url: 'https://game.granbluefantasy.jp/rest/arcarum3/start_dungeon',
@@ -4926,18 +4945,105 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
   await vm.runInContext('guidebookSortieQueues.get(502)', context);
   const explicitStartEffects = await context.readGuidebookEffects();
   const explicitStartEffect = explicitStartEffects.find(effect => Number(effect.id) === 778);
+  const resetRouteRuntime = vm.runInContext(`(() => {
+    const state = routeRuntimeCache.get(502);
+    return {
+      exists: Boolean(state),
+      starting: state?.routeSessionStarting,
+      hasSessionId: Boolean(state?.routeSessionId),
+      nodeCount: state?.nodes?.length,
+      currentNodeId: state?.currentNodeId,
+      turn: state?.totalTurn,
+      mapId: state?.mapId,
+      shopPoint: state?.shopPoint,
+      itemCount: state?.dungeonItems?.length,
+      memberCount: state?.partyMembers?.length,
+      consumedCount: state?.inferredConsumedNodeIds?.length,
+      dangerCount: state?.passedDangerNodeIds?.length,
+      shrinkingCount: state?.shrinkingNodeIds?.length,
+      miasmaKeys: Object.keys(state?.miasma || {}).length,
+      specialEvent: state?.specialEventObservation,
+      bossDefeated: state?.dayOneBossDefeated,
+      circle: state?.firstShrinkFinalCircle,
+      warp: state?.warpDeclinedAtNodeId,
+      floatingCastle: state?.floatingCastleReturnNodeId,
+    };
+  })()`, context);
   expect('successful start_dungeon is an explicit new-sortie boundary', {
     count: explicitStartEffect?.count,
     name: explicitStartEffect?.name,
     resetReason: explicitStartEffect?.currentOwnershipResetReason,
     markerRemoved: localStorageData['guidebook-sortie-state:v1:502'] === undefined,
-    runtimeRemoved: vm.runInContext('routeRuntimeCache.has(502)', context),
+    route: resetRouteRuntime,
   }, {
     count: 0,
     name: '通常攻撃のヒット数増加(＋1)',
     resetReason: 'start-dungeon',
     markerRemoved: true,
-    runtimeRemoved: false,
+    route: {
+      exists: true,
+      starting: true,
+      hasSessionId: true,
+      nodeCount: 0,
+      currentNodeId: null,
+      turn: null,
+      mapId: null,
+      shopPoint: 0,
+      itemCount: 0,
+      memberCount: 0,
+      consumedCount: 0,
+      dangerCount: 0,
+      shrinkingCount: 0,
+      miasmaKeys: 0,
+      specialEvent: null,
+      bossDefeated: false,
+      circle: null,
+      warp: null,
+      floatingCastle: null,
+    },
+  });
+  const staleFieldResult = context.updateRouteRuntimeFromFieldCapture(502, {
+    mapId: 4,
+    totalTurn: 22,
+    currentNodeId: 70,
+    nodes: [
+      { id: 70, isVisited: true },
+      { id: 71, isVisited: true },
+    ],
+    miasma: { active: true },
+  });
+  expect('old field capture cannot repopulate a newly started route session', {
+    result: staleFieldResult,
+    starting: vm.runInContext('routeRuntimeCache.get(502).routeSessionStarting', context),
+    nodeCount: vm.runInContext('routeRuntimeCache.get(502).nodes.length', context),
+  }, {
+    result: null,
+    starting: true,
+    nodeCount: 0,
+  });
+  context.updateRouteRuntimeFromFieldCapture(502, {
+    mapId: 3,
+    totalTurn: 0,
+    currentNodeId: 1,
+    shopPoint: 0,
+    nodes: [
+      { id: 1, isVisited: true, isShrinking: false },
+      { id: 2, isVisited: false, isShrinking: false },
+    ],
+    miasma: { active: false },
+  });
+  expect('turn-zero initial map unlocks route planning after session reset', {
+    starting: vm.runInContext('routeRuntimeCache.get(502).routeSessionStarting', context),
+    mapId: vm.runInContext('routeRuntimeCache.get(502).mapId', context),
+    turn: vm.runInContext('routeRuntimeCache.get(502).totalTurn', context),
+    currentNodeId: vm.runInContext('routeRuntimeCache.get(502).currentNodeId', context),
+    nodeCount: vm.runInContext('routeRuntimeCache.get(502).nodes.length', context),
+  }, {
+    starting: false,
+    mapId: 3,
+    turn: 0,
+    currentNodeId: 1,
+    nodeCount: 2,
   });
   console.log(JSON.stringify({
     passed: true,
@@ -4983,6 +5089,7 @@ context.restoreMatchingBattleState(stateAfterTabReplacement, {
       'guidebook multi-unit parsing, separate value persistence, compound effects, flags, ID-scoped chase totals, and active-only display',
       'new-sortie current guidebook ownership reset without catalog loss',
       'explicit start_dungeon new-sortie reset from captured lifecycle Ajax',
+      'route-optimization session reset, stale-capture rejection, and turn-zero reinitialization',
     ],
   }, null, 2));
 }).catch(error => {

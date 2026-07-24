@@ -100,6 +100,32 @@ const GUIDEBOOK_TOAST_DURATION_MS = 7_000;
 const shownGuidebookCaptureBatchIds = [];
 let onlineUpdateReleaseUrl = '';
 
+function resetRouteOptimizationView(routeSessionId = '') {
+  clearTimeout(routePlanRefreshTimer);
+  routePlanRefreshTimer = null;
+  currentRoutePlanReport = '';
+  currentRouteExperimentReport = '';
+  currentMiasmaAnalysisJson = '';
+  currentEnteredSpecialEvent = null;
+  elements.copyRoutePlanReport.disabled = true;
+  elements.copyRouteExperimentReport.disabled = true;
+  elements.copyCurrentRouteEvent.disabled = true;
+  elements.copyMiasmaAnalysis.disabled = true;
+  elements.saveMiasmaAnalysis.disabled = true;
+  elements.routeMap.replaceChildren?.();
+  elements.routeExperimentMap.replaceChildren?.();
+  elements.routePlanSteps.replaceChildren?.();
+  elements.routeExperimentMetrics.replaceChildren?.();
+  elements.routeStateSummary.replaceChildren?.();
+  elements.miasmaAnalysisOutput.textContent = '';
+  elements.routePlanMode.textContent = '新規探索';
+  elements.routePlanStatus.classList.remove?.('warning');
+  elements.routePlanStatus.textContent = '新しい探索のMAP初期状態を待っています…';
+  elements.routeExperimentStatus.textContent = '収縮情報待ち';
+  elements.miasmaAnalysisStatus.textContent = '新しい探索の収縮情報を待っています';
+  elements.routeMap.dataset.routeSessionId = routeSessionId;
+}
+
 function renderOnlineUpdateState(state) {
   if (!state)
     return;
@@ -2545,6 +2571,10 @@ async function loadRoutePlan() {
     const response = await chrome.runtime.sendMessage({ type: 'GBF_GET_ROUTE_STATE', tabId });
     if (response?.error)
       throw new Error(response.error);
+    if (response?.routeSessionStarting) {
+      resetRouteOptimizationView(response.routeSessionId || '');
+      return;
+    }
     const routeState = await ensureFirstShrinkCircleSnapshot(response?.routeState, tabId);
     await collectRouteSpecialEventObservations(routeState);
     renderRoutePlan(routeState);
@@ -2661,6 +2691,8 @@ chrome.runtime.onMessage.addListener((message) => {
     render(message.state);
   if (message?.type === 'GBF_AJAX_TRACE_UPDATED' && message.tabId === currentTabId)
     scheduleAjaxTraceRefresh();
+  if (message?.type === 'GBF_ROUTE_SESSION_STARTED' && message.tabId === currentTabId)
+    resetRouteOptimizationView(message.routeSessionId || '');
   if (message?.type === 'GBF_ROUTE_STATE_UPDATED' && message.tabId === currentTabId)
     scheduleRoutePlanRefresh();
   if (message?.type === 'GBF_GUIDEBOOK_EFFECTS_UPDATED') {
